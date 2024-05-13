@@ -4,19 +4,7 @@
 This repository is built for garbage classification task, which contains full code and dataset. 
 
 ### Usage
-
-1. Requirement:
-
-   - Hardware: tested with GEFORCE RTX4060(8G)
-   - Software: tested with PyTorch 1.12.1, Python3.9, CUDA 11.6
-
-2. Clone the repository:
-
-   ```shell
-   git clone https://github.com/Yashow98/Garbage-classification.git
-   ```
-
-3. Train:
+Train:
 
    ```shell
    cd Garbage-classification
@@ -27,7 +15,7 @@ This repository is built for garbage classification task, which contains full co
 
    
 
-4. Test:
+Test:
 
    ```shell
    python predict.py
