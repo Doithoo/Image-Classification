@@ -7,7 +7,7 @@ This repository is built for garbage classification task, which contains full co
 Train:
 
    ```shell
-   cd Garbage-classification
+   cd Image-classification
    cd Code
    mkdir save_weight
    python train.py
