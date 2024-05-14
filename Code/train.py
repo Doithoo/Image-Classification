@@ -46,7 +46,7 @@ valid_transform = transforms.Compose([
     normTransform
 ])
 
-batch_size = 32
+batch_size = 64
 
 # 构建MyDataset实例
 train_dataset = MyDataset(txt_path=train_txt_path, transform=train_transform)
@@ -113,7 +113,7 @@ learning_rate = 0.0001
 # optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 # optimizer = optim.AdamW(net.parameters(), lr=learning_rate)
 # optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-4)
-optimizer = Lion(net.parameters(), lr=learning_rate, weight_decay=1e-3)
+optimizer = Lion(net.parameters(), lr=learning_rate, betas=(0.95, 0.98),weight_decay=1e-3)
 
 # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)  # 设置学习率下降策略
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
