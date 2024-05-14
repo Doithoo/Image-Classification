@@ -118,7 +118,7 @@ optimizer = Lion(net.parameters(), lr=learning_rate, weight_decay=1e-3)
 # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)  # 设置学习率下降策略
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
 
-epochs = 200
+epochs = 240
 # save_path = './AlexNet.pth'
 # save_path = './save_weight/pretrain_vgg19.pth'
 # save_path = './save_weight/pretrain_resnet152.pth'

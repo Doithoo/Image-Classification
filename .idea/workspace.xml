@@ -5,30 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a990d974-8297-4258-a89f-92f5c0649cd8" name="更改" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/Garbage-Classification.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Garbage-Classification.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/.idea/Code.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/data_prepare/03_compute_mean.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/data_prepare/03_compute_mean.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/model/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/model/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/model/alex_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/model/alex_model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/model/densenet.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/model/densenet.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/model/googlenet.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/model/googlenet.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/model/resnet_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/model/resnet_model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/model/vgg_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/model/vgg_model.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Code/predict.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/predict.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Code/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Code/utils/confusion_matrix.py" beforeDir="false" afterPath="$PROJECT_DIR$/Code/utils/confusion_matrix.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
