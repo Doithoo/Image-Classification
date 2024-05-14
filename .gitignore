@@ -1,2 +1,3 @@
 # Ignore all pth files
 **/save_weight
+.idea/
