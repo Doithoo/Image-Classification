@@ -11,7 +11,7 @@ from tqdm import tqdm
 from lion_pytorch import Lion
 
 from data_prepare.mydataset import MyDataset, collate_fn
-import model
+from model import *
 
 # 设置随机数种子，确保结果可重复
 torch.manual_seed(1)
@@ -62,7 +62,7 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 
 
 # 构建模型
-# net = model.AlexNet(num_classes=6, init_weights=True)
+# net = AlexNet(num_classes=6, init_weights=True)
 
 # pretrain
 # As of v0.13, TorchVision offers a new Multi-weight support API
@@ -102,9 +102,9 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 
 
 # model_name = 'vgg11'
-# net = model.vgg(model_name=model_name, num_classes=6, init_weights=True)
+# net = vgg(model_name=model_name, num_classes=6, init_weights=True)
 
-net = model.resnet50(num_classes=6)
+net = resnet50(num_classes=6)
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
