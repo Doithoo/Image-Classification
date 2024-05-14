@@ -2,11 +2,11 @@
 # @Author  : Yashowhoo
 # @File    : __init__.py.py
 # @Description :
-from alex_model import *
-from densenet import *
-from googlenet import *
-from resnet_model import *
-from vgg_model import *
+from .alex_model import *
+from .densenet import *
+from .googlenet import *
+from .resnet_model import *
+from .vgg_model import *
 
 __all__ = [
     'AlexNet',
