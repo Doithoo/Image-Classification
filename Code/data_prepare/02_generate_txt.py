@@ -3,18 +3,29 @@ import os
 '''
     为数据集生成对应的txt文件, 制作图片数据索引，路径及标签
 '''
-total_txt_path = os.path.join("../..", "total.txt")
-total_dir = os.path.join("../..", "Garbage_classification")
+# total_txt_path = os.path.join("../..", "total.txt")
+# total_dir = os.path.join("../..", "Garbage_classification")
+#
+# train_txt_path = os.path.join("../..", "train.txt")
+# train_dir = os.path.join("../..", "train")
+#
+# valid_txt_path = os.path.join("../..", "valid.txt")
+# valid_dir = os.path.join("../..", "valid")
+#
+# test_txt_path = os.path.join("../..", "test.txt")
+# test_dir = os.path.join("../..", "test")
 
-train_txt_path = os.path.join("../..", "train.txt")
-train_dir = os.path.join("../..", "train")
+total_txt_path = os.path.join("/kaggle/working/Image-Classification", "total.txt")
+total_dir = os.path.join("/kaggle/working/Image-Classification", "Garbage_classification")
 
-valid_txt_path = os.path.join("../..", "valid.txt")
-valid_dir = os.path.join("../..", "valid")
+train_txt_path = os.path.join("/kaggle/working/Image-Classification", "train.txt")
+train_dir = os.path.join("/kaggle/working/Image-Classification", "train")
 
-test_txt_path = os.path.join("../..", "test.txt")
-test_dir = os.path.join("../..", "test")
+valid_txt_path = os.path.join("/kaggle/working/Image-Classification", "valid.txt")
+valid_dir = os.path.join("/kaggle/working/Image-Classification", "valid")
 
+test_txt_path = os.path.join("/kaggle/working/Image-Classification", "test.txt")
+test_dir = os.path.join("/kaggle/working/Image-Classification", "test")
 
 def gen_txt(txt_path, img_dir):
     garbage_class = [cls for cls in os.listdir(img_dir)]  # 垃圾类别
