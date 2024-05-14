@@ -69,4 +69,4 @@ with torch.no_grad():
         outputs = torch.argmax(outputs, dim=1)
         confusion.update(outputs.cpu().numpy(), test_labels.cpu().numpy())
     confusion.summary()
-    confusion.plot()
+    # confusion.plot()
