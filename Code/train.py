@@ -11,7 +11,9 @@ from tqdm import tqdm
 from lion_pytorch import Lion
 
 from data_prepare.mydataset import MyDataset, collate_fn
-from model import *
+from model import resnet_model, alex_model, densenet
+from model import efficientnet, googlenet, mobilenet, vgg_model, regnet, shufflenet, convnext
+from model import vision_transformer, swin_transformer
 
 # 设置随机数种子，确保结果可重复
 torch.manual_seed(1)
@@ -46,7 +48,7 @@ valid_transform = transforms.Compose([
     normTransform
 ])
 
-batch_size = 64
+batch_size = 32
 
 # 构建MyDataset实例
 train_dataset = MyDataset(txt_path=train_txt_path, transform=train_transform)
@@ -62,7 +64,7 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 
 
 # 构建模型
-# net = AlexNet(num_classes=6, init_weights=True)
+# net = alex_model.AlexNet(num_classes=6, init_weights=True)
 
 # pretrain
 # As of v0.13, TorchVision offers a new Multi-weight support API
@@ -102,9 +104,8 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 
 
 # model_name = 'vgg11'
-# net = vgg(model_name=model_name, num_classes=6, init_weights=True)
-
-net = resnet50(num_classes=6)
+# net = vgg_model.vgg(model_name=model_name, num_classes=6, init_weights=True)
+net = resnet_model.resnet50(num_classes=6)
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
