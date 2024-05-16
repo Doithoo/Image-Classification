@@ -6,7 +6,12 @@ from typing import List, Callable
 import torch
 from torch import Tensor
 import torch.nn as nn
+from ptflops import get_model_complexity_info
 
+__all__ = [
+    "shufflenet_v2_x0_5",
+    "shufflenet_v2_x1_0",
+]
 
 def channel_shuffle(x: Tensor, groups: int) -> Tensor:
 
@@ -182,3 +187,11 @@ def shufflenet_v2_x0_5(num_classes=1000):
                          num_classes=num_classes)
 
     return model
+
+
+if __name__ == '__main__':
+    # net = shufflenet_v2_x0_5(num_classes=6)
+    net = shufflenet_v2_x1_0(num_classes=6)
+    macs, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))

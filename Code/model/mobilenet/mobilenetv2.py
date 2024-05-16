@@ -3,6 +3,7 @@
 # @Description :
 from torch import nn
 import torch
+from ptflops import get_model_complexity_info
 
 __all__ = [
     "MobileNetV2",
@@ -119,3 +120,11 @@ class MobileNetV2(nn.Module):
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
+
+
+
+if __name__ == '__main__':
+    net = MobileNetV2(num_classes=6)
+    macs, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))

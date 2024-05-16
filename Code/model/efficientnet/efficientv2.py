@@ -8,8 +8,13 @@ from typing import Callable, Optional
 import torch.nn as nn
 import torch
 from torch import Tensor
+from ptflops import get_model_complexity_info
 
-
+__all__ = [
+    "efficientnetv2_s",
+    "efficientnetv2_m",
+    "efficientnetv2_l",
+]
 def drop_path(x, drop_prob: float = 0., training: bool = False):
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
@@ -378,3 +383,10 @@ def efficientnetv2_l(num_classes: int = 1000):
                            num_classes=num_classes,
                            dropout_rate=0.4)
     return model
+
+
+if __name__ == '__main__':
+    net = efficientnetv2_l(num_classes=6)
+    macs, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))

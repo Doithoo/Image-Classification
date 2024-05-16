@@ -7,6 +7,7 @@ import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
 from functools import partial
+from ptflops import get_model_complexity_info
 
 __all__ = [
     "mobilenet_v3_large",
@@ -300,3 +301,12 @@ def mobilenet_v3_small(num_classes: int = 1000,
     return MobileNetV3(inverted_residual_setting=inverted_residual_setting,
                        last_channel=last_channel,
                        num_classes=num_classes)
+
+
+
+if __name__ == '__main__':
+    # net = mobilenet_v3_small(num_classes=6)
+    net = mobilenet_v3_large(num_classes=6)
+    macs, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))
