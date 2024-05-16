@@ -10,8 +10,18 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+from ptflops import get_model_complexity_info
 
-
+__all__ = [
+    "vit_huge_patch14_224_in21k",
+    "vit_large_patch32_224_in21k",
+    "vit_base_patch16_224",
+    "vit_base_patch32_224",
+    "vit_large_patch16_224",
+    "vit_base_patch16_224_in21k",
+    "vit_base_patch32_224_in21k",
+    "vit_large_patch16_224_in21k",
+]
 def drop_path(x, drop_prob: float = 0., training: bool = False):
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
@@ -423,3 +433,18 @@ def vit_huge_patch14_224_in21k(num_classes: int = 21843, has_logits: bool = True
                               representation_size=1280 if has_logits else None,
                               num_classes=num_classes)
     return model
+
+
+if __name__ == '__main__':
+    # net = vit_base_patch16_224(num_classes=6)
+    # net = vit_base_patch32_224(num_classes=6)
+    # net = vit_large_patch16_224(num_classes=6)
+    # net = vit_huge_patch14_224_in21k(num_classes=6)
+    # net = vit_large_patch16_224_in21k(num_classes=6)
+    # net = vit_base_patch32_224_in21k(num_classes=6)
+    net = vit_base_patch16_224_in21k(num_classes=6)
+
+    macs, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))
+

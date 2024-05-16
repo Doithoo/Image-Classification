@@ -11,8 +11,18 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F
+from ptflops import get_model_complexity_info
 
-
+__all__ = [
+    "efficientnet_b0",
+    "efficientnet_b1",
+    "efficientnet_b2",
+    "efficientnet_b3",
+    "efficientnet_b4",
+    "efficientnet_b5",
+    "efficientnet_b6",
+    "efficientnet_b7",
+]
 def _make_divisible(ch, divisor=8, min_ch=None):
     """
     改变channel个数为8的整数倍，对硬件更加友好
@@ -368,3 +378,11 @@ def efficientnet_b7(num_classes=1000):
                         depth_coefficient=3.1,
                         dropout_rate=0.5,
                         num_classes=num_classes)
+
+
+if __name__ == '__main__':
+    net = efficientnet_b7(num_classes=6)
+
+    macs, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))

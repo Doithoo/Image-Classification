@@ -7,7 +7,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
+from ptflops import get_model_complexity_info
 
+__all__ = [
+    "regnet",
+]
 
 def _make_divisible(ch, divisor=8, min_ch=None):
     """
@@ -299,3 +303,11 @@ def regnet(model_name="RegNetX_200MF", num_classes=1000):
         raise KeyError(f"not support model name: {model_name}")
 
     return RegNet(cfg=model_cfgs[model_name], num_classes=num_classes)
+
+
+
+if __name__ == '__main__':
+    net = regnet(num_classes=6)
+    macs, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))

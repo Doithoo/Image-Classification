@@ -15,7 +15,18 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 import numpy as np
 from typing import Optional
+from ptflops import get_model_complexity_info
 
+__all__ = [
+    "swin_base_patch4_window7_224",
+    "swin_base_patch4_window12_384",
+    "swin_small_patch4_window7_224",
+    "swin_tiny_patch4_window7_224",
+    "swin_base_patch4_window7_224_in22k",
+    "swin_base_patch4_window12_384_in22k",
+    "swin_large_patch4_window7_224_in22k",
+    "swin_large_patch4_window12_384_in22k",
+]
 
 def drop_path_f(x, drop_prob: float = 0., training: bool = False):
     """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
@@ -677,3 +688,15 @@ def swin_large_patch4_window12_384_in22k(num_classes: int = 21841, **kwargs):
                             num_classes=num_classes,
                             **kwargs)
     return model
+
+
+if __name__ == '__main__':
+    # net = swin_tiny_patch4_window7_224(num_classes=6)
+    # net = swin_base_patch4_window12_384(num_classes=6)
+    # net = swin_base_patch4_window7_224(num_classes=6)
+    # net = swin_small_patch4_window7_224(num_classes=6)
+    net = swin_large_patch4_window12_384_in22k(num_classes=6)
+
+    macs, params = get_model_complexity_info(net, (3, 384, 384), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))

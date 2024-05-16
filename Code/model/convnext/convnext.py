@@ -9,8 +9,15 @@ https://github.com/facebookresearch/ConvNeXt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ptflops import get_model_complexity_info
 
-
+__all__ = [
+    "convnext_tiny",
+    "convnext_small",
+    "convnext_base",
+    "convnext_large",
+    "convnext_xlarge",
+]
 def drop_path(x, drop_prob: float = 0., training: bool = False):
     """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -213,3 +220,17 @@ def convnext_xlarge(num_classes: int):
                      dims=[256, 512, 1024, 2048],
                      num_classes=num_classes)
     return model
+
+
+if __name__ == '__main__':
+    # net = convnext_tiny(num_classes=6)
+    # net = convnext_small(num_classes=6)
+    # net = convnext_base(num_classes=6)
+    # net = convnext_large(num_classes=6)
+    net = convnext_xlarge(num_classes=6)
+    macs, params = get_model_complexity_info(net, (3, 224, 224), as_strings=True, print_per_layer_stat=False)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))
+
+# Computational complexity:       4.47 GMac
+# Number of parameters:           27.82 M
