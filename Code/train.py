@@ -49,7 +49,7 @@ valid_transform = transforms.Compose([
     normTransform
 ])
 
-batch_size = 32
+batch_size = 128
 
 # 构建MyDataset实例
 train_dataset = MyDataset(txt_path=train_txt_path, transform=train_transform)
@@ -107,17 +107,18 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 # model_name = 'vgg11'
 # net = vgg_model.vgg(model_name=model_name, num_classes=6, init_weights=True)
 
-net = resnet_model.resnet50(num_classes=6)
+# net = resnet_model.resnet50(num_classes=6)
+net = mobilenet.mobilenet_v3_small(num_classes=6)
 
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
-learning_rate = 0.0001
+learning_rate = 0.001
 
-# optimizer = optim.Adam(net.parameters(), lr=learning_rate)
+optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 # optimizer = optim.AdamW(net.parameters(), lr=learning_rate)
 # optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-4)
-optimizer = Lion(net.parameters(), lr=learning_rate, betas=(0.95, 0.98),weight_decay=1e-3)
+# optimizer = Lion(net.parameters(), lr=learning_rate, betas=(0.95, 0.98),weight_decay=1e-3)
 
 # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)  # 设置学习率下降策略
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
@@ -127,7 +128,8 @@ epochs = 240
 # save_path = './save_weight/pretrain_vgg19.pth'
 # save_path = './save_weight/pretrain_resnet152.pth'
 # save_path = f'{model_name}.pth'
-save_path = 'save_weight/resnet50.pth'
+# save_path = 'save_weight/resnet50.pth'
+save_path = 'save_weight/mobilenet_v3_small.pth'
 
 
 best_acc = 0.0

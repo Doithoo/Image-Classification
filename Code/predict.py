@@ -32,7 +32,7 @@ test_transform = transforms.Compose([
     normTransform
 ])
 
-batch_size = 32
+batch_size = 64
 
 test_dataset = MyDataset(test_txt_path, test_transform)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
@@ -50,15 +50,18 @@ confusion = ConfusionMatrix(num_classes=6, class_labels=class_label)
 # model_name = 'vgg11'
 # net = vgg_model.vgg(model_name=model_name, num_classes=6)
 
-net = resnet_model.resnet50(num_classes=6)
+# net = resnet_model.resnet50(num_classes=6)
+net = mobilenet.mobilenet_v3_small(num_classes=6)
 
 net.to(device)
 
 # weights_path = "./AlexNet.pth"
 # weights_path = f"./save_weight/{model_name}.pth"
-weights_path = 'save_weight/resnet50.pth'
+# weights_path = 'save_weight/resnet50.pth'
 # weights_path = 'save_weight/pretrain_vgg19.pth'
 # weights_path = 'save_weight/pretrain_resnet152.pth'
+
+weights_path = 'save_weight/mobilenet_v3_small.pth'
 
 assert os.path.exists(weights_path), f"file: '{weights_path}' dose not exist."
 net.load_state_dict(torch.load(weights_path))
