@@ -107,13 +107,13 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 # model_name = 'vgg11'
 # net = vgg_model.vgg(model_name=model_name, num_classes=6, init_weights=True)
 
-net = resnet_model.resnet50(num_classes=6)
+# net = resnet_model.resnet50(num_classes=6)
 # net = mobilenet.mobilenet_v3_small(num_classes=6)
-# net = mobilenet.mobilenet_v3_large(num_classes=6)
+net = mobilenet.mobilenet_v3_large(num_classes=6)
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
-learning_rate = 0.003
+learning_rate = 3e-4
 
 optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 # optimizer = optim.AdamW(net.parameters(), lr=learning_rate)
@@ -128,9 +128,9 @@ epochs = 240
 # save_path = './save_weight/pretrain_vgg19.pth'
 # save_path = './save_weight/pretrain_resnet152.pth'
 # save_path = f'{model_name}.pth'
-save_path = 'save_weight/resnet50.pth'
+# save_path = 'save_weight/resnet50.pth'
 # save_path = 'save_weight/mobilenet_v3_small.pth'
-# save_path = 'save_weight/mobilenet_v3_large.pth'
+save_path = 'save_weight/mobilenet_v3_large.pth'
 
 
 best_acc = 0.0
