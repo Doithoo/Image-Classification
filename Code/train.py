@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -113,7 +114,7 @@ net = mobilenet.mobilenet_v3_large(num_classes=6)
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
-learning_rate = 3e-4
+learning_rate = 0.003
 
 optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 # optimizer = optim.AdamW(net.parameters(), lr=learning_rate)
@@ -136,6 +137,10 @@ save_path = 'save_weight/mobilenet_v3_large.pth'
 best_acc = 0.0
 train_batch = len(train_loader)  # num of batches
 val_batch = len(validate_loader)
+
+# 添加用于存储训练损失和验证损失的列表
+train_losses = []
+valid_losses = []
 
 print('Start Training...')
 
@@ -178,16 +183,49 @@ for epoch in range(epochs):
             val_bar.desc = "val epoch[{}/{}] loss:{:.3f}".format(epoch + 1, epochs, loss.item())
 
     val_accurate = acc / val_num
+    train_avg_loss = train_loss / train_batch
+    valid_avg_loss = val_loss / val_batch
+
+    train_losses.append(train_avg_loss)
+    valid_losses.append(valid_avg_loss)
 
     print('[epoch %d] train_avg_loss: %.3f val_avg_loss: %.3f val_accuracy: %.3f' %
-          (epoch + 1, train_loss / train_batch, val_loss / val_batch, val_accurate))
+          (epoch + 1, train_avg_loss, valid_avg_loss, val_accurate))
 
     if val_accurate > best_acc:
         best_acc = val_accurate
         torch.save(net.state_dict(), save_path)
 
 end_time = time.time()
+
 print(f'Training time: {(end_time - start_time) / 60:.2f}min')
-# torch.save(net.state_dict(), 'final.pth')
 print(f'The Best acc is {best_acc:.3f}')
 print('Finished Training')
+
+# 绘制损失曲线
+plt.figure(figsize=(12, 8))
+
+# 设置全局字体大小
+plt.rcParams.update({'font.size': 14})  # 设置默认字体大小为14
+
+epochs_list = list(range(1, epochs + 1))
+
+plt.plot(epochs_list, train_losses, label='Training Loss', color='blue', linewidth=2)
+plt.plot(epochs_list, valid_losses, label='Validation Loss', color='red', linewidth=2)
+
+# plt.title('Training and Validation Loss')
+plt.xlabel('Epochs', fontsize=16)
+plt.ylabel('Loss', fontsize=16)
+
+plt.legend()
+plt.grid(True, which="both", ls="--", linewidth=0.5)  # 更细致的网格线样式
+# plt.show()
+
+# 保存为PNG格式，适合网络和大多数打印用途
+plt.savefig('loss_curve.png', format='png', dpi=300, bbox_inches='tight')
+
+# 保存为SVG格式，矢量图，适合高质量打印和出版
+# plt.savefig('loss_curve.svg', format='svg', bbox_inches='tight')
+
+# 保存图像到文件，这里以PDF格式为例，也可以保存为png、jpg等其他格式
+# plt.savefig('loss_curve.pdf', format='pdf', bbox_inches='tight', dpi=300)
