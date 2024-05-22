@@ -52,7 +52,11 @@ confusion = ConfusionMatrix(num_classes=6, class_labels=class_label)
 
 # net = resnet_model.resnet50(num_classes=6)
 # net = mobilenet.mobilenet_v3_small(num_classes=6)
-net = mobilenet.mobilenet_v3_large(num_classes=6)
+# net = mobilenet.mobilenet_v3_large(num_classes=6)
+# net = regnet.regnet(num_classes=6)
+# net = shufflenet.shufflenet_v2_x0_5(num_classes=6)
+# net = shufflenet.shufflenet_v2_x1_0(num_classes=6)
+net = efficientnet.efficientnet_b0(num_classes=6)
 
 net.to(device)
 
@@ -63,7 +67,11 @@ net.to(device)
 # weights_path = 'save_weight/pretrain_resnet152.pth'
 
 # weights_path = 'save_weight/mobilenet_v3_small.pth'
-weights_path = 'save_weight/mobilenet_v3_large.pth'
+# weights_path = 'save_weight/mobilenet_v3_large.pth'
+# weights_path = 'save_weight/regnet.pth'
+# weights_path = 'save_weight/shufflenet_v2_x0_5.pth'
+# weights_path = 'save_weight/shufflenet_v2_x1_0.pth'
+weights_path = 'save_weight/efficientnet_b0.pth'
 
 assert os.path.exists(weights_path), f"file: '{weights_path}' dose not exist."
 net.load_state_dict(torch.load(weights_path))

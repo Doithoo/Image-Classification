@@ -50,7 +50,7 @@ valid_transform = transforms.Compose([
     normTransform
 ])
 
-batch_size = 16
+batch_size = 8
 
 # 构建MyDataset实例
 train_dataset = MyDataset(txt_path=train_txt_path, transform=train_transform)
@@ -110,11 +110,15 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 
 # net = resnet_model.resnet50(num_classes=6)
 # net = mobilenet.mobilenet_v3_small(num_classes=6)
-net = mobilenet.mobilenet_v3_large(num_classes=6)
+# net = mobilenet.mobilenet_v3_large(num_classes=6)
+# net = regnet.regnet(num_classes=6)
+# net = shufflenet.shufflenet_v2_x0_5(num_classes=6)
+# net = shufflenet.shufflenet_v2_x1_0(num_classes=6)
+net = efficientnet.efficientnet_b0(num_classes=6)
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
-learning_rate = 0.003
+learning_rate = 1e-3
 
 optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 # optimizer = optim.AdamW(net.parameters(), lr=learning_rate)
@@ -124,15 +128,18 @@ optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)  # 设置学习率下降策略
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
 
-epochs = 240
+epochs = 200
 # save_path = './AlexNet.pth'
 # save_path = './save_weight/pretrain_vgg19.pth'
 # save_path = './save_weight/pretrain_resnet152.pth'
 # save_path = f'{model_name}.pth'
 # save_path = 'save_weight/resnet50.pth'
 # save_path = 'save_weight/mobilenet_v3_small.pth'
-save_path = 'save_weight/mobilenet_v3_large.pth'
-
+# save_path = 'save_weight/mobilenet_v3_large.pth'
+# save_path = 'save_weight/regnet.pth'
+# save_path = 'save_weight/shufflenet_v2_x0_5.pth'
+# save_path = 'save_weight/shufflenet_v2_x1_0.pth'
+save_path = 'save_weight/efficientnet_b0.pth'
 
 best_acc = 0.0
 train_batch = len(train_loader)  # num of batches
