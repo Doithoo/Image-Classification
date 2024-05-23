@@ -114,15 +114,18 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 # net = regnet.regnet(num_classes=6)
 # net = shufflenet.shufflenet_v2_x0_5(num_classes=6)
 # net = shufflenet.shufflenet_v2_x1_0(num_classes=6)
-net = efficientnet.efficientnet_b0(num_classes=6)
+# net = efficientnet.efficientnet_b5(num_classes=6)
+# net = efficientnet.efficientnetv2_s(num_classes=6)
+# net = convnext.convnext_tiny(num_classes=6)
+net = vision_transformer.vit_base_patch16_224(num_classes=6)
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
-learning_rate = 1e-3
+learning_rate = 0.01
 
-optimizer = optim.Adam(net.parameters(), lr=learning_rate)
+# optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 # optimizer = optim.AdamW(net.parameters(), lr=learning_rate)
-# optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-4)
+optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-4)
 # optimizer = Lion(net.parameters(), lr=learning_rate, betas=(0.95, 0.98),weight_decay=1e-3)
 
 # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)  # 设置学习率下降策略
@@ -139,7 +142,10 @@ epochs = 200
 # save_path = 'save_weight/regnet.pth'
 # save_path = 'save_weight/shufflenet_v2_x0_5.pth'
 # save_path = 'save_weight/shufflenet_v2_x1_0.pth'
-save_path = 'save_weight/efficientnet_b0.pth'
+# save_path = 'save_weight/efficientnet_b5.pth'
+# save_path = 'save_weight/efficientnetv2_s.pth'
+# save_path = 'save_weight/convnext_tiny.pth'
+save_path = 'save_weight/vit_base_patch16_224.pth'
 
 best_acc = 0.0
 train_batch = len(train_loader)  # num of batches
