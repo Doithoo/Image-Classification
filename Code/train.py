@@ -50,7 +50,7 @@ valid_transform = transforms.Compose([
     normTransform
 ])
 
-batch_size = 8
+batch_size = 16
 
 # 构建MyDataset实例
 train_dataset = MyDataset(txt_path=train_txt_path, transform=train_transform)
@@ -63,7 +63,6 @@ validate_loader = DataLoader(dataset=valid_dataset, batch_size=batch_size, shuff
 train_num = len(train_dataset)
 val_num = len(valid_dataset)
 print(f"using {train_num} images for training, {val_num} images for validation.")
-
 
 # 构建模型
 # net = alex_model.AlexNet(num_classes=6, init_weights=True)
@@ -103,8 +102,6 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 #         nn.init.normal_(m.weight, 0, 0.01)
 #         nn.init.constant_(m.bias, 0)
 
-
-
 # model_name = 'vgg11'
 # net = vgg_model.vgg(model_name=model_name, num_classes=6, init_weights=True)
 
@@ -118,6 +115,7 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 # net = efficientnet.efficientnetv2_s(num_classes=6)
 # net = convnext.convnext_tiny(num_classes=6)
 net = vision_transformer.vit_base_patch16_224(num_classes=6)
+# net = swin_transformer.swin_tiny_patch4_window7_224(num_classes=6)
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
@@ -146,6 +144,7 @@ epochs = 200
 # save_path = 'save_weight/efficientnetv2_s.pth'
 # save_path = 'save_weight/convnext_tiny.pth'
 save_path = 'save_weight/vit_base_patch16_224.pth'
+# save_path = 'save_weight/swin_tiny_patch4_window7_224.pth'
 
 best_acc = 0.0
 train_batch = len(train_loader)  # num of batches

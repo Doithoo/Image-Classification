@@ -32,7 +32,7 @@ test_transform = transforms.Compose([
     normTransform
 ])
 
-batch_size = 8
+batch_size = 16
 
 test_dataset = MyDataset(test_txt_path, test_transform)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
@@ -60,6 +60,7 @@ confusion = ConfusionMatrix(num_classes=6, class_labels=class_label)
 # net = efficientnet.efficientnetv2_s(num_classes=6)
 # net = convnext.convnext_tiny(num_classes=6)
 net = vision_transformer.vit_base_patch16_224(num_classes=6)
+# net = swin_transformer.swin_tiny_patch4_window7_224(num_classes=6)
 
 net.to(device)
 
@@ -78,6 +79,7 @@ net.to(device)
 # weights_path = 'save_weight/efficientnetv2_s.pth'
 # weights_path = 'save_weight/convnext_tiny.pth'
 weights_path = 'save_weight/vit_base_patch16_224.pth'
+# weights_path = 'save_weight/swin_tiny_patch4_window7_224.pth'
 
 assert os.path.exists(weights_path), f"file: '{weights_path}' dose not exist."
 net.load_state_dict(torch.load(weights_path))
