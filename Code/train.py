@@ -114,8 +114,8 @@ print(f"using {train_num} images for training, {val_num} images for validation."
 # net = efficientnet.efficientnet_b5(num_classes=6)
 # net = efficientnet.efficientnetv2_s(num_classes=6)
 # net = convnext.convnext_tiny(num_classes=6)
-net = vision_transformer.vit_base_patch16_224(num_classes=6)
-# net = swin_transformer.swin_tiny_patch4_window7_224(num_classes=6)
+# net = vision_transformer.vit_base_patch16_224(num_classes=6)
+net = swin_transformer.swin_tiny_patch4_window7_224(num_classes=6)
 
 net.to(device)
 loss_function = nn.CrossEntropyLoss()
@@ -129,7 +129,7 @@ optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_d
 # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.1)  # 设置学习率下降策略
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
 
-epochs = 200
+epochs = 300
 # save_path = './AlexNet.pth'
 # save_path = './save_weight/pretrain_vgg19.pth'
 # save_path = './save_weight/pretrain_resnet152.pth'
@@ -143,8 +143,8 @@ epochs = 200
 # save_path = 'save_weight/efficientnet_b5.pth'
 # save_path = 'save_weight/efficientnetv2_s.pth'
 # save_path = 'save_weight/convnext_tiny.pth'
-save_path = 'save_weight/vit_base_patch16_224.pth'
-# save_path = 'save_weight/swin_tiny_patch4_window7_224.pth'
+# save_path = 'save_weight/vit_base_patch16_224.pth'
+save_path = 'save_weight/swin_tiny_patch4_window7_224.pth'
 
 best_acc = 0.0
 train_batch = len(train_loader)  # num of batches
