@@ -60,7 +60,6 @@ for _name in [
     "efficientnetv2_s",
     "regnetx_002",
     "regnetx_004",
-    "shufflenet_v2_x0_5",
     "swin_tiny_patch4_window7_224",
     "vit_base_patch16_224",
 ]:

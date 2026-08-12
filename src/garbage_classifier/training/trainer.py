@@ -36,6 +36,7 @@ class Trainer:
         device: torch.device,
         class_names: list[str],
         output_dir: str | Path,
+        class_weights: list[float] | None = None,
     ) -> None:
         self.model = model.to(device)
         self.cfg = cfg
@@ -45,7 +46,11 @@ class Trainer:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         t = cfg.train
-        self.loss_fn = nn.CrossEntropyLoss(label_smoothing=t.label_smoothing)
+        if class_weights:
+            weight_tensor = torch.tensor(class_weights, dtype=torch.float32, device=device)
+            self.loss_fn = nn.CrossEntropyLoss(weight=weight_tensor, label_smoothing=t.label_smoothing)
+        else:
+            self.loss_fn = nn.CrossEntropyLoss(label_smoothing=t.label_smoothing)
         params = [p for p in model.parameters() if p.requires_grad]
         if t.optimizer == "sgd":
             self.optimizer = torch.optim.SGD(params, lr=t.lr, momentum=t.momentum, weight_decay=t.weight_decay)

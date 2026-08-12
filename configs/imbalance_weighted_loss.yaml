@@ -1,0 +1,12 @@
+# Class-imbalance ablation B: inverse-frequency weighted loss
+# Compare against imbalance_none.yaml and imbalance_weighted_sampler.yaml
+model:
+  name: resnet50
+  pretrained: true
+train:
+  epochs: 60
+  best_metric: balanced_accuracy
+  class_weight: inverse
+  sampler: none
+data:
+  aug: randaug

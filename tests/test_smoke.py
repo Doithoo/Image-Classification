@@ -88,6 +88,9 @@ def _cli_args(config_path, **extra):
     a.device = "auto"
     a.output_dir = None
     a.resume = None
+    a.image_size = None
+    a.opset = 17
+    a.no_verify = False
     for k, v in extra.items():
         setattr(a, k, v)
     return a
@@ -114,6 +117,13 @@ def test_train_eval_predict_roundtrip(tmp_path):
     # predict a single image through the CLI command
     img = next(iter((tmp_path / "data" / "a").glob("*.jpg")))
     assert cmd_predict(_cli_args(cfg_path, checkpoint=str(ckpt), image=str(img), top_k=3)) == 0
+
+    # export-onnx (verification is skipped without onnxruntime; onnx is optional)
+    from garbage_classifier.cli import cmd_export_onnx
+
+    assert cmd_export_onnx(_cli_args(cfg_path, checkpoint=str(ckpt), output=str(tmp_path / "model.onnx"))) == 0
+    assert (tmp_path / "model.onnx").exists()
+    assert (tmp_path / "model.onnx.meta.yaml").exists()
 
 
 def test_predictor_from_checkpoint_is_self_contained(tmp_path):

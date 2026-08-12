@@ -1,11 +1,12 @@
-# Example training config: class-imbalance ablation (no rebalancing)
-# Compare against configs/imbalance_weighted.yaml
+# Class-imbalance ablation A: no rebalancing (baseline)
+# Compare against imbalance_weighted_loss.yaml and imbalance_weighted_sampler.yaml
 model:
   name: resnet50
   pretrained: true
 train:
   epochs: 60
   best_metric: balanced_accuracy
-  # class_weight: none   (placeholder for the imbalance-ablation experiment)
+  class_weight: none
+  sampler: none
 data:
   aug: randaug

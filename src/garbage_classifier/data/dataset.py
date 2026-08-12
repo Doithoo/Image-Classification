@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import torch
 from PIL import Image
@@ -39,5 +38,5 @@ class ImageClassificationDataset(Dataset):
 
 
 def collate_fn(batch: list[tuple[torch.Tensor, int]]) -> tuple[torch.Tensor, torch.Tensor]:
-    images, labels = zip(*batch)
+    images, labels = zip(*batch, strict=True)
     return torch.stack(images, dim=0), torch.as_tensor(labels)

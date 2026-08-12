@@ -116,10 +116,26 @@ def cmd_train(args: argparse.Namespace) -> int:
     valid_ds = ImageClassificationDataset(
         Path(cfg.data.manifest_dir) / "valid.csv", transform=build_eval_transform(cfg.data)
     )
+
+    # class-imbalance handling: loss weights and/or weighted sampling (ablation support)
+    from .training.weights import build_weighted_sampler, compute_class_weights
+
+    train_counts = [0] * len(class_names)
+    for _, label in train_ds.samples:
+        train_counts[label] += 1
+    class_weights = compute_class_weights(train_counts, cfg.train.class_weight)
+    if class_weights:
+        log.info("class weights (%s): %s", cfg.train.class_weight, [round(w, 3) for w in class_weights])
+    sampler = None
+    if cfg.train.sampler == "weighted":
+        sampler = build_weighted_sampler([label for _, label in train_ds.samples], train_counts)
+        log.info("using WeightedRandomSampler (rare classes oversampled)")
+
     train_loader = torch.utils.data.DataLoader(
         train_ds,
         batch_size=cfg.train.batch_size,
-        shuffle=True,
+        shuffle=sampler is None,
+        sampler=sampler,
         num_workers=cfg.data.num_workers,
         pin_memory=cfg.data.pin_memory and device.type == "cuda",
         collate_fn=collate_fn,
@@ -139,7 +155,7 @@ def cmd_train(args: argparse.Namespace) -> int:
     log.info("model=%s params=%.2fM", cfg.model.name, get_num_parameters(model) / 1e6)
 
     resume = args.resume
-    trainer = Trainer(model, cfg, device, class_names, run_dir)
+    trainer = Trainer(model, cfg, device, class_names, run_dir, class_weights=class_weights)
     result = trainer.fit(train_loader, valid_loader, resume_from=resume)
     log.info(
         "done: epochs=%d best_%s=%.4f elapsed=%.1fmin  (best.pt in %s)",
@@ -234,6 +250,31 @@ def cmd_predict(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---- export-onnx -----------------------------------------------------------
+def cmd_export_onnx(args: argparse.Namespace) -> int:
+    from .inference.export import export_onnx
+
+    out = export_onnx(
+        args.checkpoint,
+        args.output,
+        image_size=args.image_size,
+        opset=args.opset,
+        verify=not args.no_verify,
+        device=args.device,
+    )
+    print(f"exported ONNX model to {out}")
+    print(f"metadata sidecar: {out.with_suffix('.onnx.meta.yaml')}")
+    return 0
+
+
+# ---- demo -------------------------------------------------------------------
+def cmd_demo(args: argparse.Namespace) -> int:
+    from .inference.demo import run_demo
+
+    run_demo(args.checkpoint, device=args.device, share=args.share)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="garbage", description=__doc__)
     parser.add_argument("--version", action="version", version=f"garbage-classifier {__version__}")
@@ -263,6 +304,21 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--config", type=str, default=None)
     p.add_argument("--device", type=str, default="auto")
     p.set_defaults(func=cmd_predict)
+
+    p = sub.add_parser("export-onnx", help="export a checkpoint to ONNX")
+    p.add_argument("--checkpoint", type=str, required=True)
+    p.add_argument("--output", type=str, default="model.onnx", help="output .onnx path")
+    p.add_argument("--image-size", type=int, default=None, help="input size (default: from checkpoint config)")
+    p.add_argument("--opset", type=int, default=17)
+    p.add_argument("--device", type=str, default="cpu", help="device for export (default: cpu)")
+    p.add_argument("--no-verify", action="store_true", help="skip onnxruntime sanity check")
+    p.set_defaults(func=cmd_export_onnx)
+
+    p = sub.add_parser("demo", help="launch the Gradio web demo")
+    p.add_argument("--checkpoint", type=str, required=True)
+    p.add_argument("--device", type=str, default="auto")
+    p.add_argument("--share", action="store_true", help="create a public share link")
+    p.set_defaults(func=cmd_demo)
 
     args = parser.parse_args(argv)
     return args.func(args)

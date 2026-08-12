@@ -14,7 +14,6 @@ import hashlib
 import random
 from collections import Counter
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from PIL import Image
@@ -102,7 +101,7 @@ def build_manifest(
 
     bad: list[str] = []
     if validate:
-        for cls, paths in per_class.items():
+        for _cls, paths in per_class.items():
             for p in paths:
                 if not validate_image(p):
                     bad.append(str(p))

@@ -67,6 +67,8 @@ class TrainConfig:
     best_metric: str = "macro_f1"  # metric used for best-checkpoint selection
     ema: bool = False  # exponential moving average of weights
     ema_decay: float = 0.999
+    class_weight: str = "none"  # none | inverse | effective  (class-imbalance ablation)
+    sampler: str = "none"  # none | weighted  (class-imbalance ablation)
     seed: int = 42
 
 
