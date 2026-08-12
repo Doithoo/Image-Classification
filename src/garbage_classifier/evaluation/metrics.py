@@ -45,9 +45,9 @@ def evaluate_predictions(preds: np.ndarray, labels: np.ndarray, num_classes: int
     labels = np.asarray(labels).astype(np.int64)
     matrix = confusion_matrix(labels, preds, num_classes)
 
-    tp = np.diag(matrix).astype(np.float64)       # correct predictions per class
-    fp = matrix.sum(axis=0) - tp                  # predicted as c, actually other classes
-    fn = matrix.sum(axis=1) - tp                  # actually c, predicted as other classes
+    tp = np.diag(matrix).astype(np.float64)  # correct predictions per class
+    fp = matrix.sum(axis=0) - tp  # predicted as c, actually other classes
+    fn = matrix.sum(axis=1) - tp  # actually c, predicted as other classes
     support = matrix.sum(axis=1).astype(np.float64)  # true count per class
 
     eps = 1e-12
