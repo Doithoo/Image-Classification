@@ -3,7 +3,9 @@
 > 本路线面向初学者，用这个项目作为脚手架，从零学会"如何训练图像分类模型"。
 > 全程约 **8–12 小时**（含动手实验），按顺序完成即可。
 >
-> **English version: [learning-path.md](learning-path.md)**
+> **English version: [learning-path.md](learning-path.md)** ·
+> **卡住了？配套实操教程：[教程系列](tutorial/README.zh-CN.md)**
+> （不同设备怎么跑、数据怎么备、模型怎么建、超参怎么选）
 
 ## 前置知识（可跳过，但建议扫一眼）
 

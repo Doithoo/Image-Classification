@@ -4,7 +4,8 @@
 > to learn how to train image-classification models from scratch. Budget:
 > **8–12 hours** including hands-on exercises. Do the stages in order.
 >
-> **中文版：[learning-path.zh-CN.md](learning-path.zh-CN.md)**
+> **中文版：[learning-path.zh-CN.md](learning-path.zh-CN.md)** ·
+> Stuck? Hands-on tutorials (中文): [tutorials](tutorial/README.zh-CN.md)
 
 ## Prerequisites (optional but recommended)
 

@@ -208,6 +208,7 @@ Results and the (surprising) lessons learned: see
 |---|---|---|
 | [`docs/learning-path.md`](docs/learning-path.md) | EN | 7-stage curriculum for beginners |
 | [`docs/learning-path.zh-CN.md`](docs/learning-path.zh-CN.md) | 中文 | 初学者 0→1 学习路线 |
+| [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | hands-on tutorials: devices, data, models, training strategy |
 | [`docs/how-it-works.md`](docs/how-it-works.md) | 中文 | data flow + why every technique exists |
 | [`docs/experiments.md`](docs/experiments.md) | 中文 | reproducible experiment log + lessons |
 | [`docs/baseline.md`](docs/baseline.md) | 中文 | the frozen pre-refactor state |
