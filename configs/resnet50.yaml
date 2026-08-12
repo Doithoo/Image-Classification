@@ -1,0 +1,23 @@
+# Example training config: ResNet50 (timm, ImageNet pretrained) — trusted baseline
+# Usage: garbage train --config configs/resnet50.yaml
+model:
+  name: resnet50
+  source: timm
+  pretrained: true
+train:
+  epochs: 60
+  batch_size: 32
+  lr: 0.0005
+  optimizer: adamw
+  scheduler: cosine
+  warmup_epochs: 5
+  label_smoothing: 0.1
+  amp: true
+  early_stop_patience: 12
+  best_metric: macro_f1
+  seed: 42
+data:
+  image_size: 224
+  aug: randaug
+  num_workers: 4
+device: auto
