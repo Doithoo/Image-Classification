@@ -161,7 +161,7 @@ MixUp 生成的样本本身"更难"，但它让模型学特征而非死记。
   ├─ 硬件内存小？ ─────────────── 是 → batch 16-32，lr 按 §2.2 缩放
   │
   └─ 输出：第一版配置 → --dry-run → 小训练（2-5 epoch）验证曲线健康
-       → 完整训练 + 早停 → evaluate 测试集 → 记录到 docs/experiments.md
+       → 完整训练 + 早停 → evaluate 测试集 → 记录到 docs/experiments.zh-CN.md
 ```
 
 ## 9. 练习

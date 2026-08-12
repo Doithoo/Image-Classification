@@ -138,7 +138,7 @@ garbage train --config configs/resnet50.yaml --dry-run
   16。OOM 就把 batch size 减半。
 - MPS 的 `pin_memory` 不生效（代码已自动只在 CUDA 时启用），不影响使用。
 - 风扇会响、机器会热 —— 正常。连续长时间训练建议让机器休息（本项目的实验
-  就遇到过热降频导致训练变慢 40 倍，见 `docs/experiments.md`）。
+  就遇到过热降频导致训练变慢 40 倍，见 `docs/experiments.zh-CN.md`）。
 
 ---
 

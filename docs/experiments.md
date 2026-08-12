@@ -1,13 +1,17 @@
-# Experiments（实验记录）
+# Experiments (Reproducible Log)
 
-> 定位：学习项目 —— 这些实验用于演示完整工作流（训练 → 评测 → 出图 → 对比），
-> 全部命令可直接复现。设备：Apple Silicon (MPS)。
+> Purpose: this is a learning project — these experiments demonstrate the full
+> workflow (train → evaluate → plot → compare), and every command is directly
+> reproducible. Hardware: Apple Silicon (MPS).
 >
-> **重要约定**：所有实验的真相以 `artifacts/<run>/config.yaml` 为准（含
-> `pretrained` 标志等），而不是记忆 —— 本文档早期版本就曾把预训练微调误记为
-> "从零训练"，靠 config.yaml 才纠正。这正是自包含 checkpoint 存在的意义。
+> **Ground rule**: the truth about every experiment is `artifacts/<run>/config.yaml`
+> (including the `pretrained` flag), never memory — an early version of this doc
+> mislabeled pretrained fine-tuning as "from scratch", and only the config file
+> exposed the mistake. That is exactly why checkpoints are self-contained.
+>
+> **中文版：[experiments.zh-CN.md](experiments.zh-CN.md)**
 
-## 实验 1：ResNet50 预训练微调（15 epochs, MixUp）
+## Experiment 1: ResNet50 pretrained fine-tune (15 epochs, MixUp)
 
 ```bash
 garbage train \
@@ -21,9 +25,9 @@ garbage train \
   --set run_name exp-resnet50-mixup
 ```
 
-**测试集结果**（`garbage evaluate --checkpoint artifacts/exp-resnet50-mixup/best.pt --plot`）：
+**Test-set results** (`garbage evaluate --checkpoint artifacts/exp-resnet50-mixup/best.pt --plot`):
 
-| 类别 | Precision | Recall | F1 | support |
+| Class | Precision | Recall | F1 | support |
 |---|---:|---:|---:|---:|
 | cardboard | 0.951 | 0.951 | 0.951 | 41 |
 | glass | 0.904 | 0.922 | 0.913 | 51 |
@@ -35,88 +39,98 @@ garbage train \
 | **balanced acc** | | | **0.882** | |
 | **macro F1** | | | **0.882** | |
 
-TTA（`--tta`）后 accuracy 升到 0.922 / balanced 0.905。
+With TTA (`--tta`) accuracy rises to 0.922 / balanced 0.905.
 
-## 实验 2：MobileNetV3-Small 从零 vs 预训练（15 epochs, MixUp）
+## Experiment 2: MobileNetV3-Small from-scratch vs pretrained (15 epochs, MixUp)
 
-| 训练方式 | valid bal | test acc | test balanced | 参数 |
+| Setup | valid bal | test acc | test balanced | params |
 |---|---:|---:|---:|---:|
-| 从零（`pretrained: false`） | 0.492 | 0.551 | 0.479 | 1.5M |
-| ImageNet 预训练微调 | 0.697 | 0.781 | 0.750 | 1.5M |
+| from scratch (`pretrained: false`) | 0.492 | 0.551 | 0.479 | 1.5M |
+| ImageNet pretrained fine-tune | 0.697 | 0.781 | 0.750 | 1.5M |
 
-**学习要点**：预训练优势在小模型上非常明显（+27 个点的 balanced acc）—— 小模型
-容量有限，从零学不动；但实验 1 里 resnet50 大模型从零+强增强也能追平预训练微调
-（见实验 4 的教训：域偏移大时预训练不一定赢）。**结论：先试预训练微调，再对比
-从零+强增强，用实验说话。**
+**Lesson**: pretraining is a huge win on small models (+27 balanced-acc points) —
+a small model has limited capacity and learns poorly from scratch. But in
+experiment 1 the large resnet50 trained from scratch with strong augmentation
+matched fine-tuning — see experiment 4's lesson about domain shift. **Conclusion:
+try pretrained fine-tuning first, then compare against from-scratch with strong
+augmentation; let the experiments decide.**
 
-## 实验 3：类别不平衡三策略对比（MobileNetV3-Small 预训练，15 epochs，无 MixUp）
+## Experiment 3: class-imbalance strategies (MobileNetV3-Small pretrained, 15 epochs, no MixUp)
 
-三个配置仅在重平衡策略上不同（`configs/imbalance_*.yaml`），其余完全一致，
-best checkpoint 按验证集 balanced accuracy 选择。
+The three configs differ only in the rebalancing strategy
+(`configs/imbalance_*.yaml`); everything else is identical. The best checkpoint
+is chosen by validation balanced accuracy.
 
-| 策略 | valid bal | test acc | test balanced | trash P | trash R | trash F1 |
+| Strategy | valid bal | test acc | test balanced | trash P | trash R | trash F1 |
 |---|---:|---:|---:|---:|---:|---:|
-| none（基线） | 0.818 | **0.832** | **0.815** | 0.833 | 0.714 | **0.769** |
+| none (baseline) | 0.818 | **0.832** | **0.815** | 0.833 | 0.714 | **0.769** |
 | inverse loss | 0.836 | 0.812 | 0.790 | 0.600 | 0.643 | 0.621 |
 | weighted sampler | **0.837** | 0.816 | 0.812 | 0.647 | **0.786** | 0.710 |
 
-**学习要点（反直觉但真实）**：
-1. 重平衡在**验证集**上赢了，但在**测试集**上基线反而最好 —— 基于验证集选模型
-   不保证迁移到测试集，样本越小波动越大。
-2. inverse loss 把 trash 的精度压到 0.60，trash F1 反而从 0.769 掉到 0.621 ——
-   重平衡是"精度↔召回"的权衡，不是免费的。
-3. weighted sampler 确实提升 trash 召回（0.714→0.786），代价是整体 accuracy 略降。
+**Lessons (counter-intuitive but real)**:
+1. Rebalancing wins on the **validation** set but the baseline wins on the
+   **test** set — model selection on validation does not guarantee transfer to
+   the test set, and the smaller the sample the larger the variance.
+2. Inverse loss pushes trash precision down to 0.60 and its F1 drops from 0.769
+   to 0.621 — rebalancing is a precision↔recall trade-off, not free lunch.
+3. The weighted sampler does raise trash recall (0.714 → 0.786) at a small cost
+   to overall accuracy.
 
-## 实验 4：EMA 开关对比（MobileNetV3-Small 预训练，15 epochs, MixUp）
+## Experiment 4: EMA on/off (MobileNetV3-Small pretrained, 15 epochs, MixUp)
 
-| 配置 | valid bal | test acc | test balanced | trash F1 |
+| Config | valid bal | test acc | test balanced | trash F1 |
 |---|---:|---:|---:|---:|
-| 无 EMA | 0.697 | **0.781** | **0.750** | **0.696** |
+| no EMA | 0.697 | **0.781** | **0.750** | **0.696** |
 | EMA decay=0.99 | 0.695 | 0.777 | 0.731 | 0.571 |
 | EMA decay=0.999 | 0.397 | 0.465 | 0.417 | 0.333 |
 
-**学习要点（本实验踩了三个坑，都是真实教训）**：
-1. **EMA 影子权重必须包含 BN 的 running_mean/var**。最初实现只平均权重、保留 fast
-   模型的 BN 统计，结果验证集预测坍缩成"永远猜同一类"（balanced acc 恒为 1/6）。
-   权重快速变化（微调阶段）时 BN 统计失配会饱和激活 —— 平均 running stats 后修复
-   （timm 的 ModelEmaV2 也是这么做的）。
-2. **decay 的时间常数 = 1/(1−decay) 步**：0.999 → 1000 步，0.99 → 100 步。15 epoch
-   只有 945 步，0.999 的影子权重几乎没跟上训练，验证分数远低于 fast 模型。
-3. **EMA 是为长训练设计的**：它平滑的是训练后期的权重抖动。短训练里 EMA 最多打平
-   甚至拖后腿；想看到 EMA 收益，需要几十上百个 epoch（或更低的 decay）。
+**Lessons (three real bugs we hit, all genuine)**:
+1. **EMA shadow weights MUST include BN running_mean/var.** The initial
+   implementation averaged weights only and kept the fast model's BN stats —
+   validation predictions collapsed to "always guess one class" (balanced acc
+   frozen at 1/6). When weights change fast (fine-tuning), the BN mismatch
+   saturates activations. Fixed by averaging the running stats too (this is what
+   timm's `ModelEmaV2` does).
+2. **The decay time constant is 1/(1−decay) steps**: 0.999 → 1000 steps,
+   0.99 → 100 steps. A 15-epoch run has only ~945 steps, so the 0.999 shadow
+   barely follows the training and scores far below the fast model.
+3. **EMA is designed for long training**: it smooths late-training weight
+   jitter. On short runs it at best ties, at worst hurts; to see its benefit you
+   need tens-to-hundreds of epochs (or a lower decay).
 
-## 实验 5：TTA（测试时增强）效果
+## Experiment 5: TTA (test-time augmentation)
 
-对 exp-resnet50-mixup 在测试集对比：
+On `exp-resnet50-mixup`, test set:
 
-| 方式 | test acc | test balanced |
+| Method | test acc | test balanced |
 |---|---:|---:|
-| 普通推理 | 0.906 | 0.882 |
-| TTA（水平翻转平均） | **0.922** | **0.905** |
+| plain inference | 0.906 | 0.882 |
+| TTA (horizontal-flip averaging) | **0.922** | **0.905** |
 
-TTA 只花一倍推理时间，白捡 1.6 个点 —— 平均多个增强视图的概率输出，降低单次
-决策的方差。`evaluate --tta` / `predict --tta` 随时可用。
+TTA costs one extra inference pass and buys 1.6 accuracy points — averaging the
+probabilities over augmented views lowers the variance of a single decision.
+`evaluate --tta` / `predict --tta` are always available.
 
-## 工具示例
+## Tool examples
 
 ```bash
-# Grad-CAM：看模型"看哪里"（错误分析第一步）
+# Grad-CAM: see "where the model looked" (first step of error analysis)
 garbage explain --checkpoint artifacts/exp-resnet50-mixup/best.pt \
   --image data/raw/paper/paper1.jpg --output gradcam.png
 
-# 训练前 1-batch 冒烟（验证数据/模型/设备没问题再跑长训练）
+# 1-batch sanity check before a long run (data/model/device OK?)
 garbage train --config configs/resnet50.yaml --dry-run
 
-# 模型参数/FLOPs 一览
+# params / FLOPs for all models
 garbage bench
 
-# 画 loss 曲线
+# plot loss curves
 python scripts/plot_metrics.py artifacts/<run>/metrics.csv
 ```
 
-## 产物约定
+## Artifact convention
 
-每次训练在 `artifacts/<run>/` 留下：`config.yaml`（完整配置，真相来源）、
-`metrics.csv`（逐 epoch 指标）、`best.pt` / `last.pt`（自包含 checkpoint）、
-评测时的 `predictions.csv` / `errors.csv` / `confusion_matrix.png`，以及可选的
-`loss_curve.png`。
+Every run leaves in `artifacts/<run>/`: `config.yaml` (full config, the source
+of truth), `metrics.csv` (per-epoch metrics), `best.pt` / `last.pt`
+(self-contained checkpoints), plus `predictions.csv` / `errors.csv` /
+`confusion_matrix.png` after evaluation, and optionally `loss_curve.png`.

@@ -1,3 +1,3 @@
 """Garbage image classification: reproducible training, evaluation and inference."""
 
-__version__ = "1.7.0"
+__version__ = "1.8.0"

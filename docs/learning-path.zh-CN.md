@@ -47,7 +47,7 @@ garbage train --config configs/resnet50.yaml --dry-run  # 1 个 batch 冒烟
 **目标**：理解任务本身 —— 6 类垃圾图片，以及为什么"只看准确率"会骗人。
 
 **读什么**：
-- [`docs/how-it-works.md`](how-it-works.md) 第 1–2 节（数据流总览、为什么用 CSV manifest）
+- [`docs/how-it-works.zh-CN.md`](how-it-works.zh-CN.md) 第 1–2 节（数据流总览、为什么用 CSV manifest）
 - `src/garbage_classifier/data/manifest.py` 顶部注释
 - 打开 `data/manifests/summary.txt` 看各类数量
 
@@ -128,7 +128,7 @@ garbage train --config configs/resnet50.yaml --set train.epochs 1 --set device c
 1. **backbone（主干）**：ResNet50 等预训练网络负责提取特征，最后接一个新的
    分类头（把 1000 类 ImageNet 输出换成我们的 6 类）。`num_classes=6` 就是干这个。
 2. **预训练 vs 从零**：`pretrained: true` 用 ImageNet 上训好的权重初始化 —— 小
-   数据集上通常大幅优于从零（`docs/experiments.md` 实验 2 有实测：+27 个点）。
+   数据集上通常大幅优于从零（`docs/experiments.zh-CN.md` 实验 2 有实测：+27 个点）。
 3. **为什么用注册表**：`config.yaml` 里写 `model.name` 就能换模型，代码不用动。
    这叫"配置驱动" —— 对比旧版（改代码切换模型）是本质区别。
 
@@ -197,7 +197,7 @@ train_loss 和 val_loss 对比说明。
 
 **读什么**：
 - `src/garbage_classifier/evaluation/metrics.py`（每个指标怎么算）
-- `docs/experiments.md` 实验 1（完整报告示例）
+- `docs/experiments.zh-CN.md` 实验 1（完整报告示例）
 
 **动手**：
 ```bash
@@ -252,7 +252,7 @@ garbage explain --checkpoint artifacts/learn-b/best.pt --image data/raw/paper/pa
 **目标**：把"做实验"变成纪律，理解可复现实验平台的本质。
 
 **读什么**：
-- `docs/experiments.md` 全文（尤其是每节的"学习要点"）
+- `docs/experiments.zh-CN.md` 全文（尤其是每节的"学习要点"）
 - `src/garbage_classifier/training/checkpoint.py`（checkpoint 里存了什么）
 
 **动手（完成一个自己的小实验矩阵）**：
@@ -273,7 +273,7 @@ python scripts/plot_metrics.py artifacts/myexp-lr1e4/metrics.csv
 2. **一次只改一个变量**：对比实验必须保证"只有自变量不同"，否则结论无效。
 3. **先记录，再下结论**：直觉（"重平衡应该更好"）经常被数据打脸（实验 3）。
 
-**验证题**：写完 `docs/experiments.md` 风格的实验记录（可以就用 myexp 两个 run），
+**验证题**：写完 `docs/experiments.zh-CN.md` 风格的实验记录（可以就用 myexp 两个 run），
 包含：命令、表格、一个"学习要点"。
 
 ---
@@ -295,13 +295,13 @@ python scripts/plot_metrics.py artifacts/myexp-lr1e4/metrics.csv
 ```
 开始 → README.zh-CN.md（快速开始）
   ↓
-阶段 0-2 → docs/how-it-works.md（数据流）＋ data/ 目录代码
+阶段 0-2 → docs/how-it-works.zh-CN.md（数据流）＋ data/ 目录代码
   ↓
 阶段 3-4 → models/registry.py ＋ training/trainer.py ＋ training/mixup.py ＋ training/ema.py
   ↓
 阶段 5-6 → evaluation/metrics.py ＋ inference/predictor.py ＋ inference/gradcam.py
   ↓
-阶段 7 → docs/experiments.md（前人的实验与教训）＋ training/checkpoint.py
+阶段 7 → docs/experiments.zh-CN.md（前人的实验与教训）＋ training/checkpoint.py
   ↓
 毕业项目 → 用 garbage 命令自由组合
 ```
