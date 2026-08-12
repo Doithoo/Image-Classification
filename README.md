@@ -8,6 +8,11 @@ Reproducible image classification for 6 garbage categories (cardboard, glass,
 metal, paper, plastic, trash) with PyTorch — config-driven training, full
 evaluation metrics, self-contained checkpoints and lightweight inference.
 
+> **定位：学习练习项目**。代码追求正确、清晰、带"为什么"注释，适合作为
+> 图像分类入门到进阶的学习脚手架。建议从
+> [`docs/how-it-works.md`](docs/how-it-works.md) 读起，用
+> [`docs/experiments.md`](docs/experiments.md) 里的命令亲手复现实验。
+
 This is the refactored successor of the original script-based project (see
 [`docs/baseline.md`](docs/baseline.md) for the frozen pre-refactor state).
 

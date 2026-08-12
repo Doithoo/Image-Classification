@@ -33,16 +33,13 @@ class DataConfig:
     num_workers: int = 4
     pin_memory: bool = True
     aug: str = "basic"  # basic | randaug
-    mixup_alpha: float = 0.0  # >0 enables MixUp
-    cutmix_alpha: float = 0.0  # >0 enables CutMix (only if mixup_alpha == 0)
 
 
 @dataclass
 class ModelConfig:
     """Model selection."""
 
-    name: str = "resnet50"  # key of the model registry (timm: <timm-model>, legacy: <name>)
-    source: str = "timm"  # timm | legacy | torchvision
+    name: str = "resnet50"  # key of the model registry (timm model or legacy_* name)
     num_classes: int = 6
     pretrained: bool = True
     timm_backbone: str | None = None  # explicit timm name, overrides ``name`` if set
@@ -61,6 +58,8 @@ class TrainConfig:
     scheduler: str = "cosine"  # cosine | step | none
     warmup_epochs: int = 5
     label_smoothing: float = 0.1
+    mixup_alpha: float = 0.0  # >0 enables MixUp (soft-target augmentation)
+    cutmix_alpha: float = 0.0  # >0 enables CutMix (ignored if mixup_alpha > 0)
     grad_clip: float = 1.0  # 0 disables
     amp: bool = True  # mixed precision (cuda/mps)
     early_stop_patience: int = 15  # epochs without val improvement before stopping

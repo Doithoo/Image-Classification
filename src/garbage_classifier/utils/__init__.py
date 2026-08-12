@@ -33,18 +33,25 @@ def pick_device(preference: str = "auto") -> torch.device:
 
 
 def git_revision(repo_root: str | Path | None = None) -> str:
-    """Return the short git revision of the repository, or 'unknown'."""
-    root = Path(repo_root) if repo_root else Path(__file__).resolve().parents[3]
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        return out.stdout.strip() or "unknown"
-    except Exception:
-        return "unknown"
+    """Return the short git revision of the repository, or 'unknown'.
+
+    Probes the current working directory first (works for both editable and
+    installed packages), falling back to the given ``repo_root``.
+    """
+    candidates = [Path.cwd()] + ([Path(repo_root)] if repo_root else [])
+    for root in candidates:
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if out.returncode == 0 and out.stdout.strip():
+                return out.stdout.strip()
+        except Exception:
+            continue
+    return "unknown"
 
 
 def setup_logging(level: str = "info") -> logging.Logger:

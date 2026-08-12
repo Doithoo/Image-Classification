@@ -71,6 +71,15 @@ def _run_dir(cfg: ExperimentConfig, model_name: str) -> Path:
 def cmd_prepare_data(args: argparse.Namespace) -> int:
     cfg = _resolve_cfg(args)
     data_dir = args.data_dir or cfg.data.data_dir
+    from .data.manifest import find_duplicates
+
+    dups = find_duplicates(data_dir)
+    if dups:
+        n = sum(len(g) - 1 for g in dups)
+        print(f"warning: {n} duplicate images found (same content, different names); e.g. {dups[0][:2]}")
+        if args.strict:
+            print("strict mode: aborting")
+            return 1
     manifests = build_manifest(
         data_dir,
         cfg.data.manifest_dir,
@@ -221,6 +230,35 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     # prediction CSV + error list
     out_dir = Path(args.output_dir or Path(args.checkpoint).parent)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.plot:
+        import matplotlib
+
+        matplotlib.use("Agg")  # headless-safe
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        cm = np.array(metrics["confusion"], dtype=np.int64)
+        fig, ax = plt.subplots(figsize=(7, 6))
+        im = ax.imshow(cm, cmap="Blues")
+        ax.set_xticks(range(len(class_names)), class_names, rotation=45, ha="right")
+        ax.set_yticks(range(len(class_names)), class_names)
+        ax.set_xlabel("Predicted")
+        ax.set_ylabel("True")
+        ax.set_title(f"Confusion matrix (acc={metrics['accuracy']:.3f})")
+        thresh = cm.max() / 2
+        for i in range(len(class_names)):
+            for j in range(len(class_names)):
+                ax.text(j, i, int(cm[i, j]), ha="center", va="center",
+                        color="white" if cm[i, j] > thresh else "black")
+        fig.colorbar(im, ax=ax, fraction=0.046)
+        fig.tight_layout()
+        fig.savefig(out_dir / "confusion_matrix.png", dpi=150)
+        print(f"confusion matrix plot saved to {out_dir / 'confusion_matrix.png'}")
+
+    # prediction CSV + error list
+    out_dir = Path(args.output_dir or Path(args.checkpoint).parent)
+    out_dir.mkdir(parents=True, exist_ok=True)
     pred_csv = out_dir / "predictions.csv"
     with pred_csv.open("w") as f:
         f.write("path,true,pred\n")
@@ -282,6 +320,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("prepare-data", help="generate manifests from class folders")
     p.add_argument("--data-dir", type=str, default=None, help="dir with one subfolder per class")
+    p.add_argument("--strict", action="store_true", help="fail if duplicate images are found")
     _add_config_args(p)
     p.set_defaults(func=cmd_prepare_data)
 
@@ -295,6 +334,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--checkpoint", type=str, required=True, help="checkpoint .pt path")
     p.add_argument("--split", type=str, default="test", choices=["train", "valid", "test"])
     p.add_argument("--error-limit", type=int, default=20)
+    p.add_argument("--plot", action="store_true", help="save a confusion-matrix PNG next to the checkpoint")
     p.set_defaults(func=cmd_evaluate)
 
     p = sub.add_parser("predict", help="predict image(s) from a checkpoint")

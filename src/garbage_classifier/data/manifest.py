@@ -55,6 +55,25 @@ def _checksum(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
+def find_duplicates(data_dir: str | Path, extensions: tuple[str, ...] = (".jpg", ".jpeg", ".png")) -> list[list[str]]:
+    """Group image paths by content hash; return groups with more than one member.
+
+    Learning note: file names can lie (same image copied under different names), so
+    content hashing is the reliable way to detect duplicates before training.
+    """
+    import hashlib
+
+    root = Path(data_dir).resolve()
+    by_hash: dict[str, list[str]] = {}
+    for class_dir in sorted(p for p in root.iterdir() if p.is_dir()):
+        for img in sorted(p for p in class_dir.iterdir() if p.suffix.lower() in extensions):
+            if img.name.startswith("._"):
+                continue
+            h = hashlib.sha256(img.read_bytes()).hexdigest()
+            by_hash.setdefault(h, []).append(str(img))
+    return [paths for paths in by_hash.values() if len(paths) > 1]
+
+
 def build_manifest(
     data_dir: str | Path,
     manifest_dir: str | Path,

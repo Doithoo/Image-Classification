@@ -2,7 +2,6 @@
 # Usage: garbage train --config configs/swin_tiny.yaml
 model:
   name: swin_tiny_patch4_window7_224
-  source: timm
   pretrained: true
 train:
   epochs: 60

@@ -49,8 +49,10 @@ class Trainer:
         if class_weights:
             weight_tensor = torch.tensor(class_weights, dtype=torch.float32, device=device)
             self.loss_fn = nn.CrossEntropyLoss(weight=weight_tensor, label_smoothing=t.label_smoothing)
+            self.class_weights_tensor = weight_tensor
         else:
             self.loss_fn = nn.CrossEntropyLoss(label_smoothing=t.label_smoothing)
+            self.class_weights_tensor = None
         params = [p for p in model.parameters() if p.requires_grad]
         if t.optimizer == "sgd":
             self.optimizer = torch.optim.SGD(params, lr=t.lr, momentum=t.momentum, weight_decay=t.weight_decay)
@@ -61,11 +63,36 @@ class Trainer:
         else:
             self.optimizer = torch.optim.AdamW(params, lr=t.lr, weight_decay=t.weight_decay)
 
+        # LR schedule with optional linear warmup (see mixup.py for the rationale of warmup)
+        # Warmup avoids large gradient updates at the very start, when the network
+        # (or the fine-tuned head) is far from a good region of the loss landscape.
         self.scheduler: Any | None = None
-        if t.scheduler == "cosine":
-            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=t.epochs)
-        elif t.scheduler == "step":
-            self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=max(1, t.epochs // 3), gamma=0.1)
+        if t.scheduler in ("cosine", "step"):
+            if t.scheduler == "cosine":
+                base = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=max(1, t.epochs - t.warmup_epochs))
+            else:
+                base = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=max(1, t.epochs // 3), gamma=0.1)
+            if t.warmup_epochs > 0:
+                warmup = torch.optim.lr_scheduler.LinearLR(
+                    self.optimizer, start_factor=0.01, total_iters=t.warmup_epochs
+                )
+                self.scheduler = torch.optim.lr_scheduler.SequentialLR(
+                    self.optimizer, schedulers=[warmup, base], milestones=[t.warmup_epochs]
+                )
+            else:
+                self.scheduler = base
+
+        # MixUp / CutMix augmentation (soft targets) and EMA shadow weights
+        from .ema import EMA
+        from .mixup import MixupCutmix
+
+        self.mixup = MixupCutmix(
+            mixup_alpha=t.mixup_alpha,
+            cutmix_alpha=t.cutmix_alpha,
+            num_classes=cfg.model.num_classes,
+            label_smoothing=t.label_smoothing,
+        )
+        self.ema: EMA | None = EMA(model, decay=t.ema_decay) if t.ema else None
 
         self.scaler = torch.amp.GradScaler("cuda", enabled=(t.amp and device.type == "cuda"))
         self.use_amp = t.amp and device.type in ("cuda", "mps")
@@ -85,7 +112,15 @@ class Trainer:
         start = time.time()
         for epoch in range(self.epoch, self.cfg.train.epochs):
             train_loss = self._run_epoch(train_loader, train=True)["loss"]
+            if self.ema is not None:
+                # snapshot fast weights, then evaluate/save the EMA shadow
+                self._fast_state = {k: v.detach().clone() for k, v in self.model.state_dict().items()}
+                self.ema.update(self.model)
+                self.ema.apply_to(self.model)
             metrics = self._run_epoch(valid_loader, train=False)
+            if self.ema is not None:
+                # restore fast weights for the next training epoch
+                self.model.load_state_dict(self._fast_state)
 
             lr = self.optimizer.param_groups[0]["lr"]
             row = {
@@ -149,11 +184,19 @@ class Trainer:
         with torch.set_grad_enabled(train):
             for images, labels in loader:
                 images, labels = images.to(self.device), labels.to(self.device)
+                if train and self.mixup.enabled:
+                    # MixUp/CutMix produces soft (one-hot mixed) targets
+                    images, soft_labels = self.mixup(images, labels)
                 if train:
                     self.optimizer.zero_grad(set_to_none=True)
                 with torch.autocast(device_type=self.device.type, dtype=torch.float16, enabled=self.use_amp):
                     outputs = self.model(images)
-                    loss = self.loss_fn(outputs, labels)
+                    if train and self.mixup.enabled:
+                        from .mixup import soft_cross_entropy
+
+                        loss = soft_cross_entropy(outputs, soft_labels, self.class_weights_tensor)
+                    else:
+                        loss = self.loss_fn(outputs, labels)
                 if train:
                     if self.use_amp and self.device.type == "cuda":
                         self.scaler.scale(loss).backward()

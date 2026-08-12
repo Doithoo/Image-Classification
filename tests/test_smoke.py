@@ -91,6 +91,7 @@ def _cli_args(config_path, **extra):
     a.image_size = None
     a.opset = 17
     a.no_verify = False
+    a.plot = False
     for k, v in extra.items():
         setattr(a, k, v)
     return a
