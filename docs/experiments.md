@@ -2,8 +2,12 @@
 
 > 定位：学习项目 —— 这些实验用于演示完整工作流（训练 → 评测 → 出图 → 对比），
 > 全部命令可直接复现。设备：Apple Silicon (MPS)。
+>
+> **重要约定**：所有实验的真相以 `artifacts/<run>/config.yaml` 为准（含
+> `pretrained` 标志等），而不是记忆 —— 本文档早期版本就曾把预训练微调误记为
+> "从零训练"，靠 config.yaml 才纠正。这正是自包含 checkpoint 存在的意义。
 
-## 实验 1：ResNet50 从零训练（15 epochs, MixUp）
+## 实验 1：ResNet50 预训练微调（15 epochs, MixUp）
 
 ```bash
 garbage train \
@@ -31,100 +35,88 @@ garbage train \
 | **balanced acc** | | | **0.882** | |
 | **macro F1** | | | **0.882** | |
 
-15 epochs 的从零训练就超过了历史 README 中 300 epochs 的 resnet50（0.871 acc）——
-MixUp + randaug + cosine + 更好的超参是主要差异。
+TTA（`--tta`）后 accuracy 升到 0.922 / balanced 0.905。
 
-## 实验 2：MobileNetV3-Small 从零训练（15 epochs, MixUp）
+## 实验 2：MobileNetV3-Small 从零 vs 预训练（15 epochs, MixUp）
 
-```bash
-garbage train \
-  --config configs/imbalance_none.yaml \
-  --set model.name mobilenetv3_small_100 \
-  --set train.epochs 15 \
-  --set train.batch_size 32 \
-  --set train.lr 0.001 \
-  --set train.mixup_alpha 0.2 \
-  --set data.num_workers 0 \
-  --set run_name exp-mobilenet-mixup
-```
+| 训练方式 | valid bal | test acc | test balanced | 参数 |
+|---|---:|---:|---:|---:|
+| 从零（`pretrained: false`） | 0.492 | 0.551 | 0.479 | 1.5M |
+| ImageNet 预训练微调 | 0.697 | 0.781 | 0.750 | 1.5M |
 
-**测试集结果**：accuracy **0.781**，balanced acc **0.750**，macro F1 **0.767**
-（trash 类 F1 0.696）。参数量只有 resnet50 的 1/15，精度差距 ~12 个点 ——
-典型的"容量换速度"权衡。
+**学习要点**：预训练优势在小模型上非常明显（+27 个点的 balanced acc）—— 小模型
+容量有限，从零学不动；但实验 1 里 resnet50 大模型从零+强增强也能追平预训练微调
+（见实验 4 的教训：域偏移大时预训练不一定赢）。**结论：先试预训练微调，再对比
+从零+强增强，用实验说话。**
 
-## 对比结论（学习要点）
-
-| 模型 | Params | test acc | balanced acc | macro F1 | 训练耗时 (MPS) |
-|---|---:|---:|---:|---:|---:|
-| resnet50 | 23.5M | 0.906 | 0.882 | 0.882 | 25 min |
-| mobilenetv3_small | 1.5M | 0.781 | 0.750 | 0.767 | 6 min |
-
-1. **trash 类始终最差**（F1 0.71/0.70，样本仅 5.4%）—— 这就是类别不平衡的直接体现，
-   也解释了为什么必须看 balanced acc / macro F1 而非只看 accuracy。
-2. **MixUp 的效果**：训练 loss 偏高（软标签使然）但验证集稳步上升，是正则化的典型特征。
-3. 下一步练习建议：跑 `configs/imbalance_weighted_loss.yaml` 对比 trash 类 F1 是否改善；
-   或把 `mixup_alpha` 调成 0 对比有无 MixUp 的差异；或对 resnet50 做预训练微调（
-   `pretrained: true`）看精度的上限在哪。
-
-## 产物约定
-
-每次训练在 `artifacts/<run>/` 留下：`config.yaml`（完整配置）、`metrics.csv`（逐 epoch
-指标）、`best.pt` / `last.pt`（自包含 checkpoint）、评测时的 `predictions.csv` /
-`errors.csv` / `confusion_matrix.png`，以及可选的 `loss_curve.png`
-（`python scripts/plot_metrics.py artifacts/<run>/metrics.csv`）。
-
----
-
-# 补充实验（v1.2）
-
-## 实验 3：类别不平衡三策略对比（MobileNetV3-Small，15 epochs，无 MixUp）
+## 实验 3：类别不平衡三策略对比（MobileNetV3-Small 预训练，15 epochs，无 MixUp）
 
 三个配置仅在重平衡策略上不同（`configs/imbalance_*.yaml`），其余完全一致，
 best checkpoint 按验证集 balanced accuracy 选择。
 
-| 策略 | valid bal_acc | test acc | test balanced | trash P | trash R | trash F1 |
+| 策略 | valid bal | test acc | test balanced | trash P | trash R | trash F1 |
 |---|---:|---:|---:|---:|---:|---:|
 | none（基线） | 0.818 | **0.832** | **0.815** | 0.833 | 0.714 | **0.769** |
 | inverse loss | 0.836 | 0.812 | 0.790 | 0.600 | 0.643 | 0.621 |
 | weighted sampler | **0.837** | 0.816 | 0.812 | 0.647 | **0.786** | 0.710 |
 
 **学习要点（反直觉但真实）**：
-1. 重平衡在**验证集**上赢了（0.836/0.837 vs 0.818），但在**测试集**上基线反而最好 ——
-   基于验证集选模型不保证迁移到测试集，样本越小波动越大。
-2. inverse loss 把 trash 的精度压到 0.60（为了提 recall 而误报过多），trash F1 反而
-   从 0.769 掉到 0.621 —— 重平衡不是免费的，它是"精度↔召回"的权衡。
-3. weighted sampler 确实提升了 trash 召回（0.714→0.786），代价是整体 accuracy 略降。
+1. 重平衡在**验证集**上赢了，但在**测试集**上基线反而最好 —— 基于验证集选模型
+   不保证迁移到测试集，样本越小波动越大。
+2. inverse loss 把 trash 的精度压到 0.60，trash F1 反而从 0.769 掉到 0.621 ——
+   重平衡是"精度↔召回"的权衡，不是免费的。
+3. weighted sampler 确实提升 trash 召回（0.714→0.786），代价是整体 accuracy 略降。
 
-## 实验 4：从零训练 vs 预训练微调（ResNet50）
+## 实验 4：EMA 开关对比（MobileNetV3-Small 预训练，15 epochs, MixUp）
 
-| 训练方式 | epochs | lr | test acc | test balanced | 备注 |
-|---|---:|---:|---:|---:|---|
-| 从零 + MixUp | 15 | 1e-3 | **0.906** | **0.882** | 见实验 1 |
-| ImageNet 预训练微调 | 10 | 3e-4 | 0.883 | 0.853 | TTA 后 acc 0.887 |
+| 配置 | valid bal | test acc | test balanced | trash F1 |
+|---|---:|---:|---:|---:|
+| 无 EMA | 0.697 | **0.781** | **0.750** | **0.696** |
+| EMA decay=0.99 | 0.695 | 0.777 | 0.731 | 0.571 |
+| EMA decay=0.999 | 0.397 | 0.465 | 0.417 | 0.333 |
 
-**学习要点**：预训练**不一定**更好。垃圾照片与 ImageNet 类别分布差异大（域偏移），
-小数据集上从零训练 + 强增强（MixUp + randaug）反而追平甚至反超。真实项目里
-"先试从零 + 强增强，再试预训练微调"是合理的对比思路。
+**学习要点（本实验踩了三个坑，都是真实教训）**：
+1. **EMA 影子权重必须包含 BN 的 running_mean/var**。最初实现只平均权重、保留 fast
+   模型的 BN 统计，结果验证集预测坍缩成"永远猜同一类"（balanced acc 恒为 1/6）。
+   权重快速变化（微调阶段）时 BN 统计失配会饱和激活 —— 平均 running stats 后修复
+   （timm 的 ModelEmaV2 也是这么做的）。
+2. **decay 的时间常数 = 1/(1−decay) 步**：0.999 → 1000 步，0.99 → 100 步。15 epoch
+   只有 945 步，0.999 的影子权重几乎没跟上训练，验证分数远低于 fast 模型。
+3. **EMA 是为长训练设计的**：它平滑的是训练后期的权重抖动。短训练里 EMA 最多打平
+   甚至拖后腿；想看到 EMA 收益，需要几十上百个 epoch（或更低的 decay）。
 
 ## 实验 5：TTA（测试时增强）效果
 
-对 exp-resnet50-mixup（从零 resnet50）在测试集对比：
+对 exp-resnet50-mixup 在测试集对比：
 
 | 方式 | test acc | test balanced |
 |---|---:|---:|
 | 普通推理 | 0.906 | 0.882 |
 | TTA（水平翻转平均） | **0.922** | **0.905** |
 
-**学习要点**：TTA 只花一倍推理时间，白捡 1-2 个点 —— 平均多个增强视图的概率
-输出，降低单次决策的方差。`evaluate --tta` / `predict --tta` 随时可用。
+TTA 只花一倍推理时间，白捡 1.6 个点 —— 平均多个增强视图的概率输出，降低单次
+决策的方差。`evaluate --tta` / `predict --tta` 随时可用。
 
-## Grad-CAM 使用示例
+## 工具示例
 
 ```bash
+# Grad-CAM：看模型"看哪里"（错误分析第一步）
 garbage explain --checkpoint artifacts/exp-resnet50-mixup/best.pt \
   --image data/raw/paper/paper1.jpg --output gradcam.png
-# 输出: top prediction: paper (class 3) + 热力图叠加图
+
+# 训练前 1-batch 冒烟（验证数据/模型/设备没问题再跑长训练）
+garbage train --config configs/resnet50.yaml --dry-run
+
+# 模型参数/FLOPs 一览
+garbage bench
+
+# 画 loss 曲线
+python scripts/plot_metrics.py artifacts/<run>/metrics.csv
 ```
 
-看"模型看哪里"是错误分析的第一步：比如 trash 误判成 metal 时，热力图会告诉你
-模型是看中了金属反光还是形状。
+## 产物约定
+
+每次训练在 `artifacts/<run>/` 留下：`config.yaml`（完整配置，真相来源）、
+`metrics.csv`（逐 epoch 指标）、`best.pt` / `last.pt`（自包含 checkpoint）、
+评测时的 `predictions.csv` / `errors.csv` / `confusion_matrix.png`，以及可选的
+`loss_curve.png`。

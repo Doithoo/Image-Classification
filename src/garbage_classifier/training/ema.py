@@ -19,17 +19,25 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-_BN_KEYS = ("num_batches_tracked", "running_mean", "running_var")
+_BN_KEYS = ("num_batches_tracked",)  # counter, not a learned statistic
 
 
 class EMA:
-    """Shadow-weight tracker. ``apply_to`` swaps EMA weights into the model."""
+    """Shadow-weight tracker. ``apply_to`` swaps EMA weights into the model.
+
+    Learning note: batch-norm *running statistics* (running_mean/var) ARE part
+    of the EMA here. If the shadow excluded them, validation would pair shadow
+    weights with the fast model's BN statistics — during fast-changing phases
+    (pretrained fine-tuning) the mismatch saturates activations and collapses
+    predictions to a single class. Averaging running stats too keeps the shadow
+    self-consistent (this is what timm's ``ModelEmaV2`` does).
+    """
 
     def __init__(self, model: nn.Module, decay: float = 0.999) -> None:
         self.decay = decay
         self.shadow: dict[str, torch.Tensor] = {}
         for name, param in model.state_dict().items():
-            if not any(k in name for k in _BN_KEYS):
+            if "num_batches_tracked" not in name:
                 self.shadow[name] = param.detach().clone()
 
     @torch.no_grad()

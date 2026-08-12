@@ -93,6 +93,7 @@ def _cli_args(config_path, **extra):
     a.no_verify = False
     a.plot = False
     a.tta = False
+    a.dry_run = False
     for k, v in extra.items():
         setattr(a, k, v)
     return a
@@ -115,6 +116,9 @@ def test_train_eval_predict_roundtrip(tmp_path):
 
     # resume from checkpoint (should be a no-op start at epoch 2)
     assert cmd_train(_cli_args(cfg_path, resume=str(ckpt))) == 0
+
+    # dry-run verifies the pipeline on 1 batch without training
+    assert cmd_train(_cli_args(cfg_path, dry_run=True)) == 0
 
     # predict a single image through the CLI command
     img = next(iter((tmp_path / "data" / "a").glob("*.jpg")))

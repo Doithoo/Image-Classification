@@ -113,11 +113,25 @@ class Trainer:
         for epoch in range(self.epoch, self.cfg.train.epochs):
             train_loss = self._run_epoch(train_loader, train=True)["loss"]
             if self.ema is not None:
-                # snapshot fast weights, then evaluate/save the EMA shadow
+                # EMA is updated per step inside _run_epoch; here we only swap in
+                # the shadow weights for validation and restore the fast weights
                 self._fast_state = {k: v.detach().clone() for k, v in self.model.state_dict().items()}
-                self.ema.update(self.model)
                 self.ema.apply_to(self.model)
             metrics = self._run_epoch(valid_loader, train=False)
+
+            # checkpoint selection happens while EMA weights are applied (if enabled),
+            # so best.pt/last.pt store the deployable (EMA) model
+            self.epoch = epoch + 1
+            score = metrics.get(self.cfg.train.best_metric, metrics["accuracy"])
+            improved = score > self.best_metric + 1e-6
+            if improved:
+                self.best_metric = score
+                self.patience_left = self.cfg.train.early_stop_patience
+                self._save("best.pt", metrics)
+            else:
+                self.patience_left -= 1
+            self._save("last.pt", metrics)
+
             if self.ema is not None:
                 # restore fast weights for the next training epoch
                 self.model.load_state_dict(self._fast_state)
@@ -143,17 +157,6 @@ class Trainer:
                 metrics["balanced_accuracy"],
                 metrics["macro_f1"],
             )
-
-            self.epoch = epoch + 1
-            score = metrics.get(self.cfg.train.best_metric, metrics["accuracy"])
-            improved = score > self.best_metric + 1e-6
-            if improved:
-                self.best_metric = score
-                self.patience_left = self.cfg.train.early_stop_patience
-                self._save("best.pt", metrics)
-            else:
-                self.patience_left -= 1
-            self._save("last.pt", metrics)
 
             if self.scheduler is not None:
                 self.scheduler.step()
@@ -210,6 +213,10 @@ class Trainer:
                         if self.cfg.train.grad_clip > 0:
                             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.cfg.train.grad_clip)
                         self.optimizer.step()
+                    if train and self.ema is not None:
+                        # EMA shadows the weights after EVERY step (decay=0.999 ->
+                        # ~6% of the trajectory per epoch at 63 steps/epoch)
+                        self.ema.update(self.model)
 
                 if not train:
                     all_preds.append(outputs.argmax(dim=1).detach().cpu())

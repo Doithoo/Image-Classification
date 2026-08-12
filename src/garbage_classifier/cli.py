@@ -164,6 +164,20 @@ def cmd_train(args: argparse.Namespace) -> int:
     model = create_model(cfg.model.name, num_classes=len(class_names), pretrained=cfg.model.pretrained)
     log.info("model=%s params=%.2fM", cfg.model.name, get_num_parameters(model) / 1e6)
 
+    if args.dry_run:
+        # 1-batch sanity check: verifies data pipeline + forward/backward before a long run
+        log.info("dry-run: training on 1 batch only ...")
+        model = model.to(device)
+        model.train()
+        images, labels = next(iter(train_loader))
+        images, labels = images.to(device), labels.to(device)
+        with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=cfg.train.amp and device.type in ("cuda", "mps")):
+            outputs = model(images)
+            loss = torch.nn.functional.cross_entropy(outputs, labels)
+        loss.backward()
+        log.info("dry-run OK: input=%s output=%s loss=%.3f", tuple(images.shape), tuple(outputs.shape), loss.item())
+        return 0
+
     resume = args.resume
     trainer = Trainer(model, cfg, device, class_names, run_dir, class_weights=class_weights)
     result = trainer.fit(train_loader, valid_loader, resume_from=resume)
@@ -307,6 +321,34 @@ def cmd_export_onnx(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---- bench -------------------------------------------------------------------
+def cmd_bench(args: argparse.Namespace) -> int:
+    """Print params (and FLOPs when ptflops is available) for all registry models."""
+    from .models.registry import available_models, create_model, get_num_parameters
+
+    print(f"{'model':32s} {'params':>10s} {'MACs':>12s}")
+    print("-" * 58)
+    for name in available_models():
+        if name.startswith("legacy_") and not args.legacy:
+            continue
+        try:
+            model = create_model(name, num_classes=6, pretrained=False).eval()
+            params = get_num_parameters(model) / 1e6
+            macs = "n/a"
+            try:
+                from ptflops import get_model_complexity_info
+
+                macs, _ = get_model_complexity_info(
+                    model, (3, args.input_size, args.input_size), as_strings=True, print_per_layer_stat=False
+                )
+            except Exception:
+                pass
+            print(f"{name:32s} {params:8.2f}M {macs:>12s}")
+        except Exception as e:
+            print(f"{name:32s} FAILED: {e}")
+    return 0
+
+
 # ---- explain (Grad-CAM) ------------------------------------------------------
 def cmd_explain(args: argparse.Namespace) -> int:
     from .inference.gradcam import GradCAM, overlay_heatmap
@@ -348,6 +390,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("train", help="train a model")
     _add_config_args(p)
     p.add_argument("--resume", type=str, default=None, help="checkpoint path to resume from")
+    p.add_argument("--dry-run", action="store_true", help="train on 1 batch only to verify the pipeline")
     p.set_defaults(func=cmd_train)
 
     p = sub.add_parser("evaluate", help="evaluate a checkpoint")
@@ -376,6 +419,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--device", type=str, default="cpu", help="device for export (default: cpu)")
     p.add_argument("--no-verify", action="store_true", help="skip onnxruntime sanity check")
     p.set_defaults(func=cmd_export_onnx)
+
+    p = sub.add_parser("bench", help="list registry models with params/FLOPs")
+    p.add_argument("--input-size", type=int, default=224)
+    p.add_argument("--legacy", action="store_true", help="include legacy models")
+    p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("explain", help="Grad-CAM heatmap for a single image")
     p.add_argument("--checkpoint", type=str, required=True)
