@@ -81,36 +81,86 @@ def _describe_group(group: list[tuple[str, Path]], root: Path) -> str:
 
 
 def _split_groups(groups: list[list[Path]], split_ratios: list[float], rng: random.Random) -> dict[str, list[Path]]:
-    """Assign indivisible content groups while staying near target counts."""
+    """Assign indivisible content groups with minimum target-count deviation."""
     split_names = ("train", "valid", "test")
     shuffled = list(groups)
     rng.shuffle(shuffled)
-    shuffled.sort(key=len, reverse=True)
     total = sum(len(group) for group in shuffled)
     targets = {
         "train": int(total * split_ratios[0]),
         "valid": int(total * (split_ratios[0] + split_ratios[1])) - int(total * split_ratios[0]),
     }
     targets["test"] = total - targets["train"] - targets["valid"]
-    assigned = {split: [] for split in split_names}
 
-    for group in shuffled:
-        group_size = len(group)
+    if all(len(group) == 1 for group in shuffled):
+        n_train = targets["train"]
+        n_valid = targets["valid"]
+        return {
+            "train": [path for group in shuffled[:n_train] for path in group],
+            "valid": [path for group in shuffled[n_train : n_train + n_valid] for path in group],
+            "test": [path for group in shuffled[n_train + n_valid :] for path in group],
+        }
 
-        def assignment_score(candidate: str, current_group_size: int = group_size) -> tuple[int, int, int]:
-            counts = {
-                split: len(paths) + (current_group_size if split == candidate else 0)
-                for split, paths in assigned.items()
-            }
-            deviation = sum(abs(counts[split] - targets[split]) for split in split_names)
-            overshoot = sum(max(0, counts[split] - targets[split]) for split in split_names)
-            return deviation, overshoot, split_names.index(candidate)
+    duplicate_groups = sorted((group for group in shuffled if len(group) > 1), key=len, reverse=True)
+    singleton_groups = [group for group in shuffled if len(group) == 1]
 
-        split = min(
-            split_names,
-            key=assignment_score,
+    # State is (train_count, valid_count) -> base-3 encoded split choices.
+    # Test count is implied by the duplicate samples processed so far.
+    states: dict[tuple[int, int], int] = {(0, 0): 0}
+    for group in duplicate_groups:
+        size = len(group)
+        next_states: dict[tuple[int, int], int] = {}
+        for (train_count, valid_count), choices in states.items():
+            candidates = (
+                (train_count + size, valid_count),
+                (train_count, valid_count + size),
+                (train_count, valid_count),
+            )
+            for split_index, state in enumerate(candidates):
+                next_states.setdefault(state, choices * 3 + split_index)
+        states = next_states
+
+    duplicate_total = sum(len(group) for group in duplicate_groups)
+    singleton_count = len(singleton_groups)
+
+    def complete_counts(train_count: int, valid_count: int) -> tuple[int, int, int]:
+        counts = [train_count, valid_count, duplicate_total - train_count - valid_count]
+        remaining = singleton_count
+        for index, split in enumerate(split_names):
+            added = min(remaining, max(0, targets[split] - counts[index]))
+            counts[index] += added
+            remaining -= added
+        counts[0] += remaining
+        return counts[0], counts[1], counts[2]
+
+    def final_score(state: tuple[int, int]) -> tuple[int, int, int, int, int]:
+        counts = complete_counts(*state)
+        deviations = tuple(abs(counts[index] - targets[split]) for index, split in enumerate(split_names))
+        return (
+            sum(deviations),
+            sum(max(0, counts[index] - targets[split]) for index, split in enumerate(split_names)),
+            *deviations,
         )
-        assigned[split].extend(group)
+
+    best_state = min(states, key=final_score)
+    final_counts = complete_counts(*best_state)
+    encoded_choices = states[best_state]
+    duplicate_choices = []
+    for _group in reversed(duplicate_groups):
+        duplicate_choices.append(encoded_choices % 3)
+        encoded_choices //= 3
+    duplicate_choices.reverse()
+
+    assigned = {split: [] for split in split_names}
+    for group, split_index in zip(duplicate_groups, duplicate_choices, strict=True):
+        assigned[split_names[split_index]].extend(group)
+
+    singleton_targets = [final_counts[index] - len(assigned[split]) for index, split in enumerate(split_names)]
+    offset = 0
+    for split, count in zip(split_names, singleton_targets, strict=True):
+        selected = singleton_groups[offset : offset + count]
+        assigned[split].extend(path for group in selected for path in group)
+        offset += count
     return assigned
 
 
@@ -273,6 +323,10 @@ def load_manifest(manifest_path: str | Path, root_dir: str | Path) -> list[tuple
         for row in reader:
             rel = row["path"]
             abs_path = (root / rel).resolve()
+            try:
+                abs_path.relative_to(root)
+            except ValueError as exc:
+                raise ManifestError(f"manifest entry outside data root: {rel!r}; root={root}") from exc
             if not abs_path.is_file():
                 raise ManifestError(f"manifest entry missing on disk: {abs_path}")
             rows.append((str(abs_path), int(row["label"])))

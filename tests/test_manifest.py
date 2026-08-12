@@ -145,6 +145,26 @@ def test_grouped_split_minimizes_target_count_deviation(tmp_path):
     assert sum(abs(counts.get(split, 0) - target) for split, target in {"train": 8, "valid": 1, "test": 1}.items()) == 2
 
 
+def test_grouped_split_finds_reachable_optimal_counts(tmp_path):
+    class_dir = tmp_path / "data" / "paper"
+    class_dir.mkdir(parents=True)
+    for group_index, group_size in enumerate((8, 4, 3, 2, 2, 2)):
+        source = class_dir / f"{group_index}-0.jpg"
+        Image.new("RGB", (16, 16), color=(group_index * 30, 0, 0)).save(source)
+        for copy_index in range(1, group_size):
+            shutil.copyfile(source, class_dir / f"{group_index}-{copy_index}.jpg")
+
+    manifests = build_manifest(
+        tmp_path / "data",
+        tmp_path / "manifests",
+        split_ratios=[0.8, 0.1, 0.1],
+        seed=5,
+    )
+    counts = {split: len(rows) for split, rows in _manifest_rows(manifests).items()}
+
+    assert counts == {"train": 16, "valid": 2, "test": 3}
+
+
 def test_strict_mode_rejects_same_class_duplicates(tmp_path):
     _make_dataset(tmp_path, {"paper": 2})
     source = tmp_path / "data" / "paper" / "paper0.jpg"
@@ -196,3 +216,20 @@ def test_dataset_root_override_supports_moved_data(tmp_path):
 
     assert len(dataset) == 1
     assert dataset.samples[0][0].startswith(str(moved_root.resolve()))
+
+
+@pytest.mark.parametrize("manifest_entry", ["../outside.jpg", "absolute"])
+def test_load_manifest_rejects_paths_outside_root(tmp_path, manifest_entry):
+    root = tmp_path / "data"
+    root.mkdir()
+    outside = tmp_path / "outside.jpg"
+    Image.new("RGB", (16, 16)).save(outside)
+    entry = str(outside.resolve()) if manifest_entry == "absolute" else manifest_entry
+    manifest = tmp_path / "manifest.csv"
+    manifest.write_text(f"path,label\n{entry},0\n")
+
+    with pytest.raises(ManifestError, match="outside data root") as exc_info:
+        load_manifest(manifest, root)
+
+    assert entry in str(exc_info.value)
+    assert str(root.resolve()) in str(exc_info.value)
