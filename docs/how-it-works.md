@@ -5,8 +5,8 @@
 ## 1. 数据流总览
 
 ```
-Garbage_classification/  (class 文件夹)
-        │  scripts/download_data.py  (GitHub Release, SHA-256 校验)
+GitHub Release (garbage-classification.tar.gz)
+        │  scripts/download_data.py  (SHA-256 校验 + 解压)
         ▼
 data/raw/  (class 文件夹)
         │  garbage prepare-data  (分层切分 seed=666 + 坏图/重复图校验)
@@ -15,9 +15,9 @@ data/manifests/{train,valid,test}.csv   ← 可移植清单（相对路径）
         │  garbage train  (读取 manifest + transform)
         ▼
 artifacts/<run>/  (config.yaml + metrics.csv + best.pt + last.pt)
-        │  garbage evaluate / predict / export-onnx
+        │  garbage evaluate / predict / export-onnx / explain
         ▼
-测试集指标 / 单图预测 / ONNX 模型
+测试集指标 / 单图预测 / ONNX 模型 / Grad-CAM 热力图
 ```
 
 ## 2. 为什么用 CSV manifest 而不是目录遍历

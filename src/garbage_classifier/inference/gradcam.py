@@ -54,7 +54,9 @@ class GradCAM:
     def _forward_hook(self, module: nn.Module, inp: tuple[torch.Tensor, ...], out: torch.Tensor) -> None:
         self._activations = out.detach()
 
-    def _backward_hook(self, module: nn.Module, grad_in: tuple[torch.Tensor, ...], grad_out: tuple[torch.Tensor, ...]) -> None:
+    def _backward_hook(
+        self, module: nn.Module, grad_in: tuple[torch.Tensor, ...], grad_out: tuple[torch.Tensor, ...]
+    ) -> None:
         self._gradients = grad_out[0].detach()
 
     @torch.no_grad()
@@ -65,9 +67,7 @@ class GradCAM:
 
         weights = self._gradients.mean(dim=(2, 3), keepdim=True)  # α_c: per-channel mean gradient
         cam = torch.relu((weights * self._activations).sum(dim=1, keepdim=True))  # ReLU(Σ α·A)
-        cam = torch.nn.functional.interpolate(
-            cam, size=input_tensor.shape[2:], mode="bilinear", align_corners=False
-        )
+        cam = torch.nn.functional.interpolate(cam, size=input_tensor.shape[2:], mode="bilinear", align_corners=False)
         # normalize to [0, 1] per image
         cam = cam.squeeze(0).squeeze(0)
         cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
@@ -102,5 +102,5 @@ def overlay_heatmap(image, heatmap: torch.Tensor, alpha: float = 0.5):
     cmap[..., 2] = np.clip(1.0 - cam * 2.0, 0, 1)  # blue fades
 
     image = image.convert("RGB").resize((cam.shape[1], cam.shape[0]))
-    blended = (alpha * np.array(image) / 255.0 + (1 - alpha) * cmap)
+    blended = alpha * np.array(image) / 255.0 + (1 - alpha) * cmap
     return Image.fromarray((blended * 255).astype(np.uint8))

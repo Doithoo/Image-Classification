@@ -178,7 +178,6 @@ def manifest_root(manifest_dir: str | Path) -> Path:
     return Path(yaml.safe_load(src.read_text())["data_dir"]).resolve()
 
 
-
 def load_manifest(manifest_path: str | Path, root_dir: str | Path) -> list[tuple[str, int]]:
     """Load a manifest CSV into [(absolute_path, label)] with path validation."""
     root = Path(root_dir).resolve()

@@ -17,3 +17,7 @@ smoke:  ## 1-epoch CPU smoke run on real data
 	garbage train --config configs/resnet50.yaml \
 		--set train.epochs 1 --set train.batch_size 16 \
 		--set data.num_workers 0 --set device cpu --set run_name smoke
+
+clean:  ## Remove caches and build artifacts
+	rm -rf .pytest_cache .ruff_cache build dist *.egg-info
+	find . -name __pycache__ -type d -not -path "./.venv/*" -exec rm -rf {} +

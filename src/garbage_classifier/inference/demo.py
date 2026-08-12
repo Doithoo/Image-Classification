@@ -12,9 +12,7 @@ def run_demo(checkpoint_path: str | Path, device: str = "auto", share: bool = Fa
     try:
         import gradio as gr
     except ImportError:
-        raise SystemExit(
-            "gradio is not installed; run: pip install -e '.[demo]'"
-        ) from None
+        raise SystemExit("gradio is not installed; run: pip install -e '.[demo]'") from None
 
     predictor = Predictor(checkpoint_path, device=device)
 

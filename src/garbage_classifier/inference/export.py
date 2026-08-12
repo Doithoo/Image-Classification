@@ -71,8 +71,7 @@ def export_onnx(
     # write a sidecar with runtime metadata for serving
     meta = out.with_suffix(".onnx.meta.yaml")
     meta.write_text(
-        f"model: {cfg.model.name}\nimage_size: {image_size}\nclasses: {payload['class_names']}\n"
-        f"opset: {opset}\n"
+        f"model: {cfg.model.name}\nimage_size: {image_size}\nclasses: {payload['class_names']}\nopset: {opset}\n"
     )
     return out
 

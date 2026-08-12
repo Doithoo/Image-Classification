@@ -69,7 +69,9 @@ class Trainer:
         self.scheduler: Any | None = None
         if t.scheduler in ("cosine", "step"):
             if t.scheduler == "cosine":
-                base = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=max(1, t.epochs - t.warmup_epochs))
+                base = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    self.optimizer, T_max=max(1, t.epochs - t.warmup_epochs)
+                )
             else:
                 base = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=max(1, t.epochs // 3), gamma=0.1)
             if t.warmup_epochs > 0:

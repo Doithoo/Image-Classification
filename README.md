@@ -116,18 +116,23 @@ usage; `available_models()` lists all registry keys.
 ## Project structure
 
 ```
-src/garbage_classifier/
-  config.py          typed config (YAML + dotted overrides)
-  cli.py             train / evaluate / predict / prepare-data
-  data/              manifests, dataset, transforms
-  models/            registry + timm zoo (+ legacy shim)
-  training/          Trainer, checkpoint save/load
-  evaluation/        metrics, classification report, confusion matrix
-  inference/         Predictor (checkpoint-driven)
-  utils/             seeding, device, git revision, logging
-configs/             example experiment YAMLs
-tests/               unit + CPU smoke tests
-docs/baseline.md     frozen pre-refactor state
+Image-Classification/
+├── src/garbage_classifier/
+│   ├── cli.py            CLI presentation layer (arg parsing + dispatch)
+│   ├── config.py         typed config (YAML + dotted overrides)
+│   ├── data/             manifests, dataset, transforms, prepare-data logic
+│   ├── models/           registry + timm zoo (+ legacy shim)
+│   │   └── legacy_models/   vendored hand-written models (lazy-loaded)
+│   ├── training/         Trainer, checkpoints, train command logic
+│   ├── evaluation/       metrics, reports, evaluate command logic
+│   ├── inference/        Predictor, Grad-CAM, ONNX export, demo
+│   └── utils/            seeding, device, git revision, logging
+├── configs/              example experiment YAMLs
+├── scripts/              download_data.py, plot_metrics.py
+├── tests/                unit + CPU end-to-end smoke tests
+├── docs/                 learning guide, experiment log, baseline report
+├── data/                 (gitignored) downloaded dataset + generated manifests
+└── artifacts/            (gitignored) per-run: config.yaml, metrics.csv, best.pt, plots
 ```
 
 ## Reproducibility guarantees

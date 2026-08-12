@@ -11,10 +11,12 @@ dist/
 venv/
 .env
 
-# ---- IDE / 系统 ----
+# ---- IDE / 系统 / 缓存 ----
 .idea/
 .vscode/
 .DS_Store
+.pytest_cache/
+.ruff_cache/
 
 # ---- 训练产物 ----
 **/save_weight

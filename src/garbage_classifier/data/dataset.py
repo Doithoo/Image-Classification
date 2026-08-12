@@ -18,7 +18,9 @@ class ImageClassificationDataset(Dataset):
     used, making manifests self-describing.
     """
 
-    def __init__(self, manifest_path: str | Path, root_dir: str | Path | None = None, transform=None, target_transform=None) -> None:
+    def __init__(
+        self, manifest_path: str | Path, root_dir: str | Path | None = None, transform=None, target_transform=None
+    ) -> None:
         root = Path(root_dir) if root_dir is not None else manifest_root(Path(manifest_path).parent)
         self.samples = load_manifest(manifest_path, root)
         self.transform = transform

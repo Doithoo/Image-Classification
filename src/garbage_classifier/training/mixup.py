@@ -43,8 +43,9 @@ class MixupCutmix:
             loss = self.loss_fn(outputs, labels)   # hard labels
     """
 
-    def __init__(self, mixup_alpha: float = 0.0, cutmix_alpha: float = 0.0, num_classes: int = 6,
-                 label_smoothing: float = 0.0) -> None:
+    def __init__(
+        self, mixup_alpha: float = 0.0, cutmix_alpha: float = 0.0, num_classes: int = 6, label_smoothing: float = 0.0
+    ) -> None:
         self.mixup_alpha = mixup_alpha
         self.cutmix_alpha = cutmix_alpha
         self.num_classes = num_classes
@@ -68,10 +69,9 @@ class MixupCutmix:
         lam = lam.view(batch, 1, 1, 1)  # broadcastable over image dims
 
         mixed_images = lam * images + (1.0 - lam) * images[perm]
-        mixed_targets = (
-            lam.view(batch, 1) * one_hot_mixup_target(labels, self.num_classes, self.label_smoothing)
-            + (1.0 - lam.view(batch, 1)) * one_hot_mixup_target(labels[perm], self.num_classes, self.label_smoothing)
-        )
+        mixed_targets = lam.view(batch, 1) * one_hot_mixup_target(labels, self.num_classes, self.label_smoothing) + (
+            1.0 - lam.view(batch, 1)
+        ) * one_hot_mixup_target(labels[perm], self.num_classes, self.label_smoothing)
         return mixed_images, mixed_targets
 
     def _sample_lambda(self, batch: int, device: torch.device) -> torch.Tensor:
@@ -87,8 +87,9 @@ class MixupCutmix:
         return lam
 
 
-def soft_cross_entropy(logits: torch.Tensor, soft_targets: torch.Tensor,
-                       class_weights: torch.Tensor | None = None) -> torch.Tensor:
+def soft_cross_entropy(
+    logits: torch.Tensor, soft_targets: torch.Tensor, class_weights: torch.Tensor | None = None
+) -> torch.Tensor:
     """Cross-entropy against soft (one-hot mixed) targets: −Σ_c w_c · y_c · log p_c.
 
     This is the loss that goes with MixUp/CutMix. With integer labels it reduces
