@@ -1,4 +1,27 @@
-# Ignore all pth files
-**/save_weight
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# ---- 环境 ----
+.venv/
+venv/
+.env
+
+# ---- IDE / 系统 ----
 .idea/
+.vscode/
+.DS_Store
+
+# ---- 训练产物 ----
+**/save_weight
 **/*.png
+artifacts/
+*.pth
+
+# ---- 数据（重构后由脚本下载，不入库） ----
+data/
+*.txt
