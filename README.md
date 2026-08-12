@@ -98,8 +98,8 @@ usage; `available_models()` lists all registry keys.
   accuracy alone is misleading, so evaluation always reports balanced accuracy,
   macro/weighted F1 and per-class metrics.
 - Hosted as a GitHub Release asset (not in git):
-  `garbage-classification-v1.0.tar.gz` (39.7 MB, SHA-256
-  `acde700f…c0582ab`). Fetch it with:
+  `garbage-classification.tar.gz` (39.7 MB, SHA-256
+  `be0b99fc…ea1b6`). Fetch it with:
 
   ```bash
   python scripts/download_data.py        # verifies checksum, extracts to data/raw/

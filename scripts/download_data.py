@@ -20,7 +20,7 @@ import urllib.request
 from pathlib import Path
 
 DATASET_URL = "https://github.com/Doithoo/Image-Classification/releases/download/v1.0/garbage-classification.tar.gz"
-EXPECTED_SHA256 = "acde700fc5ef7885342b095037af82223c771d5c3ce82f152c7345207c0582ab"
+EXPECTED_SHA256 = "be0b99fc61360cf267f8be4e0c10d1d2dc23f141b6fbeac20122468bb81ea1b6"
 
 
 def _sha256(path: Path) -> str:
@@ -59,7 +59,11 @@ def main() -> int:
     if tmp.exists():
         shutil.rmtree(tmp)
     shutil.unpack_archive(archive, tmp)
-    for entry in tmp.iterdir():
+    # macOS may create AppleDouble (._*) junk on extraction; drop it
+    for entry in list(tmp.iterdir()):
+        if entry.name.startswith("._"):
+            entry.unlink()
+            continue
         shutil.move(str(entry), out / entry.name)
     tmp.rmdir()
     archive.unlink()
