@@ -38,6 +38,8 @@ def test_per_class_metrics_hand_computed():
     assert np.isclose(m["per_class_precision"][1], 2 / 3)
     assert np.isclose(m["per_class_f1"][0], 0.8)
     assert np.isclose(m["macro_f1"], (0.8 + 0.8 + 1.0) / 3)
+    assert np.isclose(m["weighted_precision"], (1.0 * 3 + (2 / 3) * 2 + 1.0) / 6)
+    assert np.isclose(m["weighted_recall"], ((2 / 3) * 3 + 1.0 * 2 + 1.0) / 6)
     # balanced accuracy = mean recall = (2/3 + 1 + 1)/3
     assert np.isclose(m["balanced_accuracy"], (2 / 3 + 1 + 1) / 3)
 
@@ -57,3 +59,14 @@ def test_classification_report_output():
     report = classification_report(m, ["a", "b"])
     assert "a" in report and "b" in report
     assert "balanced accuracy" in report
+
+
+def test_classification_report_uses_weighted_precision_and_recall():
+    labels = np.array([0, 0, 0, 1])
+    preds = np.array([0, 0, 1, 1])
+    metrics = evaluate_predictions(preds, labels, num_classes=2)
+
+    weighted_row = next(line for line in classification_report(metrics, ["a", "b"]).splitlines() if "weighted avg" in line)
+
+    assert f"{metrics['weighted_precision']:.3f}" in weighted_row
+    assert f"{metrics['weighted_recall']:.3f}" in weighted_row

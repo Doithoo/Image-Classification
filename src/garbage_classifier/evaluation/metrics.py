@@ -63,6 +63,8 @@ def evaluate_predictions(preds: np.ndarray, labels: np.ndarray, num_classes: int
     weighted_f1 = float((f1 * support).sum() / max(support.sum(), eps))
     macro_precision = float(precision.mean())
     macro_recall = float(recall.mean())
+    weighted_precision = float((precision * support).sum() / max(support.sum(), eps))
+    weighted_recall = float((recall * support).sum() / max(support.sum(), eps))
 
     return {
         "accuracy": accuracy,
@@ -71,6 +73,8 @@ def evaluate_predictions(preds: np.ndarray, labels: np.ndarray, num_classes: int
         "weighted_f1": weighted_f1,
         "macro_precision": macro_precision,
         "macro_recall": macro_recall,
+        "weighted_precision": weighted_precision,
+        "weighted_recall": weighted_recall,
         "per_class_precision": precision.tolist(),
         "per_class_recall": recall.tolist(),
         "per_class_f1": f1.tolist(),
@@ -96,7 +100,7 @@ def classification_report(metrics: dict[str, float], class_names: list[str]) -> 
         f"{'macro avg':12s} {metrics['macro_precision']:10.3f} {metrics['macro_recall']:8.3f} {metrics['macro_f1']:9.3f}"
     )
     lines.append(
-        f"{'weighted avg':12s} {metrics['macro_precision']:10.3f} {metrics['macro_recall']:8.3f} {metrics['weighted_f1']:9.3f}"
+        f"{'weighted avg':12s} {metrics['weighted_precision']:10.3f} {metrics['weighted_recall']:8.3f} {metrics['weighted_f1']:9.3f}"
     )
     lines.append(f"balanced accuracy: {metrics['balanced_accuracy']:.4f}")
     return "\n".join(lines)

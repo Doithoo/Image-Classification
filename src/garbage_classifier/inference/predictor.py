@@ -8,15 +8,14 @@ names.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import torch
 from PIL import Image
 
-from ..config import DataConfig, ModelConfig, load_config
+from ..config import load_config
 from ..data.transforms import build_inference_transform
 from ..models.registry import create_model
-from ..training.checkpoint import load_checkpoint
+from ..training.checkpoint import deployable_model_state, load_checkpoint, restore_config_from_checkpoint
 from ..utils import pick_device
 
 
@@ -31,12 +30,7 @@ class Predictor:
         if config_path is not None:
             self.cfg = load_config(config_path)
         else:
-            # restore full config from checkpoint metadata (no drift possible)
-            raw = payload["config"]
-            self.cfg = load_config()
-            for section in ("data", "model", "train"):
-                if section in raw:
-                    setattr(self.cfg, section, _restore_section(section, raw[section]))
+            self.cfg = restore_config_from_checkpoint(payload)
             self.cfg.device = device
 
         self.device = pick_device(device)
@@ -45,7 +39,7 @@ class Predictor:
             num_classes=len(self.class_names),
             pretrained=False,
         )
-        self.model.load_state_dict(payload["model_state_dict"])
+        self.model.load_state_dict(deployable_model_state(payload))
         self.model.to(self.device).eval()
         self.transform = build_inference_transform(self.cfg.data)
 
@@ -77,11 +71,3 @@ class Predictor:
                 probs = probs + torch.softmax(self.model(torch.flip(images, dims=[3])), dim=1)
                 probs = probs / 2.0
         return probs
-
-
-def _restore_section(section: str, data: dict[str, Any]) -> Any:
-    from ..config import TrainConfig
-
-    cls = {"data": DataConfig, "model": ModelConfig, "train": TrainConfig}[section]
-    valid = {f for f in cls.__dataclass_fields__}  # type: ignore[attr-defined]
-    return cls(**{k: v for k, v in data.items() if k in valid})

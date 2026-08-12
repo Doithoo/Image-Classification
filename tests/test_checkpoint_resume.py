@@ -1,10 +1,16 @@
 import random
 
 import numpy as np
+import pytest
 import torch
 
 from garbage_classifier.config import load_config
-from garbage_classifier.training.checkpoint import load_checkpoint, save_checkpoint
+from garbage_classifier.training.checkpoint import (
+    deployable_model_state,
+    load_checkpoint,
+    restore_config_from_checkpoint,
+    save_checkpoint,
+)
 from garbage_classifier.training.ema import EMA
 from garbage_classifier.training.trainer import Trainer
 
@@ -110,3 +116,32 @@ def test_old_checkpoint_remains_loadable(tmp_path):
 
     _assert_state_equal(payload["training_model_state_dict"], old["model_state_dict"])
     _assert_state_equal(payload["deployable_model_state_dict"], old["model_state_dict"])
+
+
+def test_restore_config_and_deployable_state_are_shared_checkpoint_helpers():
+    state = {"weight": torch.tensor([2.0])}
+    payload = {
+        "config": {
+            "data": {"image_size": 37, "resize_size": 41},
+            "model": {"name": "mobilenetv3_small_100"},
+        },
+        "deployable_model_state_dict": state,
+        "model_state_dict": {"weight": torch.tensor([1.0])},
+    }
+
+    cfg = restore_config_from_checkpoint(payload)
+
+    assert cfg.data.image_size == 37
+    assert cfg.data.resize_size == 41
+    assert cfg.model.name == "mobilenetv3_small_100"
+    assert deployable_model_state(payload) is state
+
+
+def test_restore_config_reports_missing_metadata_clearly():
+    with pytest.raises(ValueError, match="checkpoint is missing config metadata"):
+        restore_config_from_checkpoint({})
+
+
+def test_deployable_state_supports_legacy_model_state_dict():
+    state = {"weight": torch.tensor([1.0])}
+    assert deployable_model_state({"model_state_dict": state}) is state

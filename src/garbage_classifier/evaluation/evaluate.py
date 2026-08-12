@@ -10,6 +10,7 @@ import torch
 from ..config import ExperimentConfig
 from ..data import ImageClassificationDataset, collate_fn
 from ..data.transforms import build_eval_transform
+from ..training.checkpoint import load_checkpoint, restore_config_from_checkpoint
 from ..utils import pick_device
 from .metrics import classification_report, error_samples, evaluate_predictions
 
@@ -31,15 +32,18 @@ def evaluate_checkpoint(
     set, a confusion-matrix PNG is saved next to the checkpoint.
     """
     device = pick_device(cfg.device)
-    payload = torch.load(checkpoint, map_location="cpu", weights_only=False)
+    payload = load_checkpoint(checkpoint)
+    checkpoint_cfg = restore_config_from_checkpoint(payload)
     class_names: list[str] = payload["class_names"]
     # model identity comes from the checkpoint metadata (self-contained); an
     # explicit --config may override data paths but not silently swap the architecture
-    ckpt_model = payload.get("config", {}).get("model", {}).get("name", cfg.model.name)
+    ckpt_model = checkpoint_cfg.model.name
     logger.info("evaluating %s (%s) on %s (classes=%d)", checkpoint, ckpt_model, split, len(class_names))
 
     dataset = ImageClassificationDataset(
-        Path(cfg.data.manifest_dir) / f"{split}.csv", transform=build_eval_transform(cfg.data)
+        Path(cfg.data.manifest_dir) / f"{split}.csv",
+        root_dir=Path(cfg.data.data_dir),
+        transform=build_eval_transform(checkpoint_cfg.data),
     )
     loader = torch.utils.data.DataLoader(
         dataset,
@@ -53,7 +57,6 @@ def evaluate_checkpoint(
     from ..inference.predictor import Predictor  # lazy: avoids import cycle
 
     predictor = Predictor(checkpoint, device=cfg.device)
-    predictor.model.load_state_dict(payload["model_state_dict"])
 
     all_preds, all_labels, all_paths = [], [], []
     sample_paths = [p for p, _ in dataset.samples]

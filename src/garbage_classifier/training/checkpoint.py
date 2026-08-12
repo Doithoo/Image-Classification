@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from ..config import ExperimentConfig, to_dict
+from ..config import DataConfig, ExperimentConfig, ModelConfig, TrainConfig, load_config, to_dict
 from ..utils import git_revision
 
 
@@ -71,15 +71,46 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     if not p.exists():
         raise FileNotFoundError(f"checkpoint not found: {p}")
     payload = torch.load(p, map_location="cpu", weights_only=False)
-    required = {"model_state_dict", "config", "class_names"}
+    required = {"config", "class_names"}
     missing = required - set(payload)
     if missing:
         raise ValueError(f"checkpoint {p} is missing metadata: {sorted(missing)}")
-    # Normalize legacy checkpoints into the current schema without changing the
-    # inference-facing model_state_dict key.
-    payload.setdefault("training_model_state_dict", payload["model_state_dict"])
-    payload.setdefault("deployable_model_state_dict", payload["model_state_dict"])
+    state = deployable_model_state(payload)
+    payload.setdefault("model_state_dict", state)
+    payload.setdefault("training_model_state_dict", state)
+    payload.setdefault("deployable_model_state_dict", state)
     payload.setdefault("ema_state_dict", None)
     payload.setdefault("scaler_state_dict", None)
     payload.setdefault("patience_left", None)
     return payload
+
+
+def restore_config_from_checkpoint(payload: dict[str, Any]) -> ExperimentConfig:
+    """Rebuild the resolved experiment config stored in a checkpoint."""
+    raw = payload.get("config")
+    if not isinstance(raw, dict):
+        raise ValueError("checkpoint is missing config metadata")
+    cfg = load_config()
+    classes = {"data": DataConfig, "model": ModelConfig, "train": TrainConfig}
+    for section, cls in classes.items():
+        values = raw.get(section)
+        if values is None:
+            continue
+        if not isinstance(values, dict):
+            raise ValueError(f"checkpoint config section {section!r} must be a mapping")
+        valid = cls.__dataclass_fields__
+        setattr(cfg, section, cls(**{key: value for key, value in values.items() if key in valid}))
+    for key in ("device", "output_dir", "run_name", "log_level"):
+        if key in raw:
+            setattr(cfg, key, raw[key])
+    return cfg
+
+
+def deployable_model_state(payload: dict[str, Any]) -> dict[str, torch.Tensor]:
+    """Select inference weights, falling back to the legacy state-dict key."""
+    state = payload.get("deployable_model_state_dict")
+    if state is None:
+        state = payload.get("model_state_dict")
+    if state is None:
+        raise ValueError("checkpoint is missing deployable model state")
+    return state

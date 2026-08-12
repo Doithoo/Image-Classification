@@ -10,21 +10,8 @@ from pathlib import Path
 
 import torch
 
-from ..config import DataConfig, ExperimentConfig, ModelConfig, load_config
 from ..models.registry import create_model
-from ..training.checkpoint import load_checkpoint
-
-
-def restore_config_from_checkpoint(payload: dict) -> ExperimentConfig:
-    """Rebuild the ExperimentConfig stored in a checkpoint."""
-    cfg = load_config()
-    raw = payload["config"]
-    for section in ("data", "model", "train"):
-        if section in raw:
-            cls = {"data": DataConfig, "model": ModelConfig, "train": type(cfg.train)}[section]
-            valid = {f for f in cls.__dataclass_fields__}
-            setattr(cfg, section, cls(**{k: v for k, v in raw[section].items() if k in valid}))
-    return cfg
+from ..training.checkpoint import deployable_model_state, load_checkpoint, restore_config_from_checkpoint
 
 
 def export_onnx(
@@ -48,7 +35,7 @@ def export_onnx(
         image_size = cfg.data.image_size
 
     model = create_model(cfg.model.name, num_classes=len(payload["class_names"]), pretrained=False)
-    model.load_state_dict(payload["model_state_dict"])
+    model.load_state_dict(deployable_model_state(payload))
     model.eval()
 
     out.parent.mkdir(parents=True, exist_ok=True)
