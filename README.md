@@ -127,23 +127,36 @@ docs/baseline.md     frozen pre-refactor state
 
 ## Reproducibility guarantees
 
-- [ ] fresh env: `pip install -e .` + one CLI command → CPU smoke run
-- [ ] any complete experiment replayable from `artifacts/<run>/` alone
-- [ ] test split never used for tuning; all comparisons traceable (config+seed+weights)
-- [ ] inference never requires manually repeating classes / normalization / model name
-- [ ] CI green on lint + unit tests + minimal training flow
+- [x] fresh env: `pip install -e .` + one CLI command → CPU smoke run
+- [x] any complete experiment replayable from `artifacts/<run>/` alone
+- [x] test split never used for tuning; all comparisons traceable (config+seed+weights)
+- [x] inference never requires manually repeating classes / normalization / model name
+- [x] CI green on lint + unit tests + minimal training flow
 
-## Roadmap
+## Class-imbalance ablations
 
-- [x] Baseline freeze & engineering foundation (package, config, CLI, tests, CI)
-- [x] Portable manifests & reproducible split
-- [x] Training/evaluation/inference core
-- [x] Dataset release (GitHub Release asset + verified download script)
-- [ ] Upload the release asset (one manual step)
-- [ ] Imbalance ablations (weighted loss / sampler vs none)
-- [ ] Legacy model migration (registry shim + consistency check)
-- [ ] ONNX export & demo app
-- [ ] v1.0 release
+The `trash` class is only 5.4% of training data, so three comparable strategies are
+provided (best checkpoint is selected by `balanced_accuracy` in these configs):
+
+| Config | Strategy |
+|---|---|
+| `configs/imbalance_none.yaml` | plain CE loss, uniform sampling (baseline) |
+| `configs/imbalance_weighted_loss.yaml` | inverse-frequency class weights in the loss |
+| `configs/imbalance_weighted_sampler.yaml` | `WeightedRandomSampler` (oversample rare classes) |
+
+## Legacy models
+
+The original 16 hand-written model families are vendored under
+`garbage_classifier.models.legacy_models` and exposed as `legacy_*` registry keys
+(38 entries) with lazy loading — they are kept for reproducibility of historical
+experiments, but the maintained timm backends are the recommended default.
+
+## ONNX export & demo
+
+```bash
+garbage export-onnx --checkpoint artifacts/<run>/best.pt --output model.onnx
+garbage demo --checkpoint artifacts/<run>/best.pt      # Gradio UI (pip install -e '.[demo]')
+```
 
 ## Contributing
 
