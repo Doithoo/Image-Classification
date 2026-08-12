@@ -105,6 +105,19 @@ class Trainer:
 
     # ---- public API -------------------------------------------------------
     def fit(self, train_loader: DataLoader, valid_loader: DataLoader, resume_from: str | None = None) -> dict[str, Any]:
+        """Run the full train/validate loop.
+
+        Loop walkthrough (learning note):
+          1. train one epoch -> per-step: forward, loss, backward, optimizer.step,
+             (optional) EMA shadow update, (optional) MixUp soft targets
+          2. (optional) swap in EMA shadow weights for validation
+          3. validate -> collect predictions, compute metrics (accuracy,
+             balanced accuracy, macro-F1, ...), log to metrics.csv
+          4. checkpoint selection happens while EMA weights are applied, so
+             best.pt stores the deployable (EMA) model
+          5. restore fast weights (EMA only), step the LR scheduler, check early
+             stopping
+        """
         csv_path = self.output_dir / "metrics.csv"
         csv_logger = CsvLogger(csv_path, ["epoch", "train_loss", "val_loss", "accuracy", "balanced_acc", "macro_f1"])
 
