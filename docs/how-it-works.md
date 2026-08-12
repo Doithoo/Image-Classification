@@ -81,6 +81,15 @@ for epoch in range(epochs):
 每类 precision/recall/F1、混淆矩阵，以及 predictions.csv / errors.csv
 （错误样本清单，用于人工检查模型错在哪）。
 
+## 5.5 Grad-CAM 与 TTA（推理期工具）
+
+- **Grad-CAM**（`garbage explain`）：取最后一个卷积层的特征图，用类别得分对它的
+  梯度作为通道权重，加权求和后得到"哪些像素支撑了这个决策"的热力图。
+  用途：错误分析 —— 模型分错时，看它看的是不是错误区域。原理见
+  `inference/gradcam.py` 顶部注释。
+- **TTA**（`evaluate --tta` / `predict --tta`）：推理时把输入水平翻转再推一次，
+  两个 softmax 取平均。不训练任何东西，白捡 1-2 个点精度（见 experiments.md 实验 5）。
+
 ## 6. 推荐的学习路线
 
 1. 跑通一次完整训练：`garbage train --config configs/resnet50.yaml`（先

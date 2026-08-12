@@ -49,17 +49,34 @@ class Predictor:
         self.model.to(self.device).eval()
         self.transform = build_inference_transform(self.cfg.data)
 
-    def predict(self, image: Image.Image, top_k: int = 1) -> list[tuple[str, float]]:
-        """Return [(class_name, probability)] sorted descending, limited to top_k."""
+    def predict(self, image: Image.Image, top_k: int = 1, tta: bool = False) -> list[tuple[str, float]]:
+        """Return [(class_name, probability)] sorted descending, limited to top_k.
+
+        TTA (test-time augmentation): average the softmax over the original and
+        horizontally-flipped views. Averaging probabilities reduces variance from
+        augmentation-sensitive decisions — a cheap accuracy boost at inference.
+        """
         img = self.transform(image.convert("RGB")).unsqueeze(0).to(self.device)
-        with torch.no_grad():
-            logits = self.model(img)
-            probs = torch.softmax(logits, dim=1)[0]
+        probs = self.predict_probs(img, tta=tta)[0]
         top = torch.topk(probs, k=min(top_k, len(self.class_names)))
         return [(self.class_names[i], float(p)) for i, p in zip(top.indices.tolist(), top.values.tolist(), strict=True)]
 
-    def predict_path(self, path: str | Path, top_k: int = 1) -> list[tuple[str, float]]:
-        return self.predict(Image.open(path), top_k=top_k)
+    def predict_path(self, path: str | Path, top_k: int = 1, tta: bool = False) -> list[tuple[str, float]]:
+        return self.predict(Image.open(path), top_k=top_k, tta=tta)
+
+    def predict_probs(self, images: torch.Tensor, tta: bool = False) -> torch.Tensor:
+        """Return per-sample class probabilities for a batched, preprocessed tensor.
+
+        Used by ``evaluate --tta`` so both the CLI and the single-image path share
+        the same TTA logic.
+        """
+        self.model.eval()
+        with torch.no_grad():
+            probs = torch.softmax(self.model(images), dim=1)
+            if tta:
+                probs = probs + torch.softmax(self.model(torch.flip(images, dims=[3])), dim=1)
+                probs = probs / 2.0
+        return probs
 
 
 def _restore_section(section: str, data: dict[str, Any]) -> Any:

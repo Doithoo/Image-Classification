@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from PIL import Image
 
 from . import __version__
 from .config import ExperimentConfig, dump_config, load_config
@@ -201,17 +202,18 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
         collate_fn=collate_fn,
     )
 
-    model = create_model(ckpt_model, num_classes=len(class_names), pretrained=False)
-    model.load_state_dict(payload["model_state_dict"])
-    model.to(device).eval()
+    from .inference.predictor import Predictor
+
+    predictor = Predictor(args.checkpoint, device=cfg.device, config_path=args.config)
+    predictor.model.load_state_dict(payload["model_state_dict"])
 
     all_preds, all_labels, all_paths = [], [], []
     sample_paths = [p for p, _ in test_ds.samples]
     start = 0
     with torch.no_grad():
         for images, labels in loader:
-            outputs = model(images.to(device))
-            preds_batch = outputs.argmax(dim=1).cpu()
+            probs = predictor.predict_probs(images.to(device), tta=args.tta)
+            preds_batch = probs.argmax(dim=1).cpu()
             all_preds.append(preds_batch)
             all_labels.append(labels)
             end = start + len(labels)
@@ -282,7 +284,7 @@ def cmd_predict(args: argparse.Namespace) -> int:
     for path in targets:
         if path.suffix.lower() not in (".jpg", ".jpeg", ".png"):
             continue
-        top = predictor.predict_path(path, top_k=args.top_k)
+        top = predictor.predict_path(path, top_k=args.top_k, tta=args.tta)
         ranked = ", ".join(f"{name}={prob:.3f}" for name, prob in top)
         print(f"{path} -> {ranked}")
     return 0
@@ -302,6 +304,25 @@ def cmd_export_onnx(args: argparse.Namespace) -> int:
     )
     print(f"exported ONNX model to {out}")
     print(f"metadata sidecar: {out.with_suffix('.onnx.meta.yaml')}")
+    return 0
+
+
+# ---- explain (Grad-CAM) ------------------------------------------------------
+def cmd_explain(args: argparse.Namespace) -> int:
+    from .inference.gradcam import GradCAM, overlay_heatmap
+    from .inference.predictor import Predictor
+
+    predictor = Predictor(args.checkpoint, device=args.device, config_path=args.config)
+    image = Image.open(args.image)
+    img_tensor = predictor.transform(image.convert("RGB")).to(predictor.device)
+
+    cam_model = GradCAM(predictor.model)
+    heatmap, class_idx = cam_model.generate(img_tensor, class_idx=args.class_idx, device=predictor.device)
+
+    out = Path(args.output)
+    overlay_heatmap(image, heatmap, alpha=args.alpha).save(out)
+    print(f"top prediction: {predictor.class_names[class_idx]} (class {class_idx})")
+    print(f"saved Grad-CAM overlay to {out}")
     return 0
 
 
@@ -335,6 +356,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--split", type=str, default="test", choices=["train", "valid", "test"])
     p.add_argument("--error-limit", type=int, default=20)
     p.add_argument("--plot", action="store_true", help="save a confusion-matrix PNG next to the checkpoint")
+    p.add_argument("--tta", action="store_true", help="test-time augmentation (average over horizontal flip)")
     p.set_defaults(func=cmd_evaluate)
 
     p = sub.add_parser("predict", help="predict image(s) from a checkpoint")
@@ -343,6 +365,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--top-k", type=int, default=3)
     p.add_argument("--config", type=str, default=None)
     p.add_argument("--device", type=str, default="auto")
+    p.add_argument("--tta", action="store_true", help="test-time augmentation (average over horizontal flip)")
     p.set_defaults(func=cmd_predict)
 
     p = sub.add_parser("export-onnx", help="export a checkpoint to ONNX")
@@ -353,6 +376,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--device", type=str, default="cpu", help="device for export (default: cpu)")
     p.add_argument("--no-verify", action="store_true", help="skip onnxruntime sanity check")
     p.set_defaults(func=cmd_export_onnx)
+
+    p = sub.add_parser("explain", help="Grad-CAM heatmap for a single image")
+    p.add_argument("--checkpoint", type=str, required=True)
+    p.add_argument("--image", type=str, required=True, help="image path")
+    p.add_argument("--output", type=str, default="gradcam.png")
+    p.add_argument("--class-idx", type=int, default=None, help="class of interest (default: top-1)")
+    p.add_argument("--alpha", type=float, default=0.5, help="heatmap blend strength")
+    p.add_argument("--config", type=str, default=None)
+    p.add_argument("--device", type=str, default="auto")
+    p.set_defaults(func=cmd_explain)
 
     p = sub.add_parser("demo", help="launch the Gradio web demo")
     p.add_argument("--checkpoint", type=str, required=True)

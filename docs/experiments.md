@@ -72,3 +72,59 @@ garbage train \
 指标）、`best.pt` / `last.pt`（自包含 checkpoint）、评测时的 `predictions.csv` /
 `errors.csv` / `confusion_matrix.png`，以及可选的 `loss_curve.png`
 （`python scripts/plot_metrics.py artifacts/<run>/metrics.csv`）。
+
+---
+
+# 补充实验（v1.2）
+
+## 实验 3：类别不平衡三策略对比（MobileNetV3-Small，15 epochs，无 MixUp）
+
+三个配置仅在重平衡策略上不同（`configs/imbalance_*.yaml`），其余完全一致，
+best checkpoint 按验证集 balanced accuracy 选择。
+
+| 策略 | valid bal_acc | test acc | test balanced | trash P | trash R | trash F1 |
+|---|---:|---:|---:|---:|---:|---:|
+| none（基线） | 0.818 | **0.832** | **0.815** | 0.833 | 0.714 | **0.769** |
+| inverse loss | 0.836 | 0.812 | 0.790 | 0.600 | 0.643 | 0.621 |
+| weighted sampler | **0.837** | 0.816 | 0.812 | 0.647 | **0.786** | 0.710 |
+
+**学习要点（反直觉但真实）**：
+1. 重平衡在**验证集**上赢了（0.836/0.837 vs 0.818），但在**测试集**上基线反而最好 ——
+   基于验证集选模型不保证迁移到测试集，样本越小波动越大。
+2. inverse loss 把 trash 的精度压到 0.60（为了提 recall 而误报过多），trash F1 反而
+   从 0.769 掉到 0.621 —— 重平衡不是免费的，它是"精度↔召回"的权衡。
+3. weighted sampler 确实提升了 trash 召回（0.714→0.786），代价是整体 accuracy 略降。
+
+## 实验 4：从零训练 vs 预训练微调（ResNet50）
+
+| 训练方式 | epochs | lr | test acc | test balanced | 备注 |
+|---|---:|---:|---:|---:|---|
+| 从零 + MixUp | 15 | 1e-3 | **0.906** | **0.882** | 见实验 1 |
+| ImageNet 预训练微调 | 10 | 3e-4 | 0.883 | 0.853 | TTA 后 acc 0.887 |
+
+**学习要点**：预训练**不一定**更好。垃圾照片与 ImageNet 类别分布差异大（域偏移），
+小数据集上从零训练 + 强增强（MixUp + randaug）反而追平甚至反超。真实项目里
+"先试从零 + 强增强，再试预训练微调"是合理的对比思路。
+
+## 实验 5：TTA（测试时增强）效果
+
+对 exp-resnet50-mixup（从零 resnet50）在测试集对比：
+
+| 方式 | test acc | test balanced |
+|---|---:|---:|
+| 普通推理 | 0.906 | 0.882 |
+| TTA（水平翻转平均） | **0.922** | **0.905** |
+
+**学习要点**：TTA 只花一倍推理时间，白捡 1-2 个点 —— 平均多个增强视图的概率
+输出，降低单次决策的方差。`evaluate --tta` / `predict --tta` 随时可用。
+
+## Grad-CAM 使用示例
+
+```bash
+garbage explain --checkpoint artifacts/exp-resnet50-mixup/best.pt \
+  --image data/raw/paper/paper1.jpg --output gradcam.png
+# 输出: top prediction: paper (class 3) + 热力图叠加图
+```
+
+看"模型看哪里"是错误分析的第一步：比如 trash 误判成 metal 时，热力图会告诉你
+模型是看中了金属反光还是形状。
