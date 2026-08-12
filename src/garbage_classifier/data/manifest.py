@@ -85,6 +85,7 @@ def _split_groups(groups: list[list[Path]], split_ratios: list[float], rng: rand
     split_names = ("train", "valid", "test")
     shuffled = list(groups)
     rng.shuffle(shuffled)
+    shuffled.sort(key=len, reverse=True)
     total = sum(len(group) for group in shuffled)
     targets = {
         "train": int(total * split_ratios[0]),
@@ -94,9 +95,20 @@ def _split_groups(groups: list[list[Path]], split_ratios: list[float], rng: rand
     assigned = {split: [] for split in split_names}
 
     for group in shuffled:
-        split = max(
+        group_size = len(group)
+
+        def assignment_score(candidate: str, current_group_size: int = group_size) -> tuple[int, int, int]:
+            counts = {
+                split: len(paths) + (current_group_size if split == candidate else 0)
+                for split, paths in assigned.items()
+            }
+            deviation = sum(abs(counts[split] - targets[split]) for split in split_names)
+            overshoot = sum(max(0, counts[split] - targets[split]) for split in split_names)
+            return deviation, overshoot, split_names.index(candidate)
+
+        split = min(
             split_names,
-            key=lambda candidate: (targets[candidate] - len(assigned[candidate]), -split_names.index(candidate)),
+            key=assignment_score,
         )
         assigned[split].extend(group)
     return assigned

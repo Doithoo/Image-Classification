@@ -124,6 +124,27 @@ def test_no_content_hash_crosses_splits(tmp_path):
             assert hashes_by_split[split].isdisjoint(hashes_by_split[other])
 
 
+def test_grouped_split_minimizes_target_count_deviation(tmp_path):
+    class_dir = tmp_path / "data" / "paper"
+    class_dir.mkdir(parents=True)
+    for group_index, group_size in enumerate((2, 3, 5)):
+        source = class_dir / f"{group_index}0.jpg"
+        Image.new("RGB", (16, 16), color=(group_index * 80, 0, 0)).save(source)
+        for copy_index in range(1, group_size):
+            shutil.copyfile(source, class_dir / f"{group_index}{copy_index}.jpg")
+
+    manifests = build_manifest(
+        tmp_path / "data",
+        tmp_path / "manifests",
+        split_ratios=[0.8, 0.1, 0.1],
+        seed=5,
+    )
+    counts = {split: len(rows) for split, rows in _manifest_rows(manifests).items()}
+
+    assert counts == {"train": 8, "valid": 2}
+    assert sum(abs(counts.get(split, 0) - target) for split, target in {"train": 8, "valid": 1, "test": 1}.items()) == 2
+
+
 def test_strict_mode_rejects_same_class_duplicates(tmp_path):
     _make_dataset(tmp_path, {"paper": 2})
     source = tmp_path / "data" / "paper" / "paper0.jpg"
