@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import os
 import random
 from collections import Counter
 from pathlib import Path
@@ -55,23 +56,65 @@ def _checksum(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
+def _content_groups(samples: list[tuple[str, Path]]) -> dict[str, list[tuple[str, Path]]]:
+    """Group samples by their full SHA-256 content hash."""
+    groups: dict[str, list[tuple[str, Path]]] = {}
+    for cls, path in samples:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        groups.setdefault(digest, []).append((cls, path))
+    return groups
+
+
 def find_duplicates(data_dir: str | Path, extensions: tuple[str, ...] = (".jpg", ".jpeg", ".png")) -> list[list[str]]:
     """Group image paths by content hash; return groups with more than one member.
 
     Learning note: file names can lie (same image copied under different names), so
     content hashing is the reliable way to detect duplicates before training.
     """
-    import hashlib
-
     root = Path(data_dir).resolve()
-    by_hash: dict[str, list[str]] = {}
-    for class_dir in sorted(p for p in root.iterdir() if p.is_dir()):
-        for img in sorted(p for p in class_dir.iterdir() if p.suffix.lower() in extensions):
-            if img.name.startswith("._"):
-                continue
-            h = hashlib.sha256(img.read_bytes()).hexdigest()
-            by_hash.setdefault(h, []).append(str(img))
-    return [paths for paths in by_hash.values() if len(paths) > 1]
+    groups = _content_groups(_iter_images(root, extensions))
+    return [[str(path) for _cls, path in group] for group in groups.values() if len(group) > 1]
+
+
+def _describe_group(group: list[tuple[str, Path]], root: Path) -> str:
+    return ", ".join(f"{_relpath(path, root)} (class {cls!r})" for cls, path in group)
+
+
+def _split_groups(groups: list[list[Path]], split_ratios: list[float], rng: random.Random) -> dict[str, list[Path]]:
+    """Assign indivisible content groups while staying near target counts."""
+    split_names = ("train", "valid", "test")
+    shuffled = list(groups)
+    rng.shuffle(shuffled)
+    total = sum(len(group) for group in shuffled)
+    targets = {
+        "train": int(total * split_ratios[0]),
+        "valid": int(total * (split_ratios[0] + split_ratios[1])) - int(total * split_ratios[0]),
+    }
+    targets["test"] = total - targets["train"] - targets["valid"]
+    assigned = {split: [] for split in split_names}
+
+    for group in shuffled:
+        split = max(
+            split_names,
+            key=lambda candidate: (targets[candidate] - len(assigned[candidate]), -split_names.index(candidate)),
+        )
+        assigned[split].extend(group)
+    return assigned
+
+
+def _source_metadata(root: Path, out_dir: Path, classes: list[str], class_index: dict[str, int]) -> dict:
+    """Build versioned, portable source metadata for a manifest set."""
+    try:
+        root_path = os.path.relpath(root, out_dir.resolve())
+        data_root = {"path": Path(root_path).as_posix(), "relative_to": "manifest_dir"}
+    except ValueError:
+        data_root = {"path": str(root), "relative_to": None}
+    return {
+        "schema_version": 1,
+        "data_root": data_root,
+        "classes": classes,
+        "class_index": class_index,
+    }
 
 
 def build_manifest(
@@ -80,6 +123,7 @@ def build_manifest(
     split_ratios: list[float] = (0.8, 0.1, 0.1),
     seed: int = 666,
     validate: bool = True,
+    strict: bool = False,
 ) -> dict[str, Path]:
     """Split ``data_dir`` (class folders) into train/valid/test CSV manifests.
 
@@ -95,45 +139,45 @@ def build_manifest(
     classes = sorted({c for c, _ in samples})
     class_index = {c: i for i, c in enumerate(classes)}  # 类别名 -> 数字标签（字母序）
 
+    content_groups = _content_groups(samples)
+    duplicate_groups = [group for group in content_groups.values() if len(group) > 1]
+    for group in duplicate_groups:
+        group_classes = {cls for cls, _path in group}
+        if len(group_classes) > 1:
+            raise ManifestError(
+                "annotation conflict: identical image content has multiple classes: " + _describe_group(group, root)
+            )
+    if strict and duplicate_groups:
+        raise ManifestError(
+            "duplicate image content found in strict mode: " + _describe_group(duplicate_groups[0], root)
+        )
+
     # ---- 分层切分（stratified split）----
     # 为什么不全局打乱再切？因为某个类别可能样本很少，全局打乱后可能全部挤进
     # 训练集。分层 = 对每个类别独立打乱，再按同一比例切，保证每个类别在
     # train/valid/test 中的比例一致。
-    per_class: dict[str, list[Path]] = {c: [] for c in classes}
-    for cls, path in samples:
-        per_class[cls].append(path)
+    per_class: dict[str, list[list[Path]]] = {c: [] for c in classes}
+    for group in content_groups.values():
+        cls = group[0][0]
+        per_class[cls].append([path for _group_cls, path in group])
 
     # 用独立 Random(seed) 实例而不是全局 random：只影响本次切分，不影响
     # 训练阶段其他随机性；固定 seed 保证任何人重跑得到完全相同的切分。
     rng = random.Random(seed)
-    for paths in per_class.values():
-        rng.shuffle(paths)
-
     splits: dict[str, list[tuple[str, str]]] = {"train": [], "valid": [], "test": []}
-    for cls, paths in per_class.items():
-        n = len(paths)
-        # 按比例算边界：先把前 80% 给 train，再在剩余里取 10% 给 valid，
-        # 余下的给 test。用整数运算避免浮点累积误差。
-        n_train = int(n * split_ratios[0])
-        n_valid = int(n * (split_ratios[0] + split_ratios[1])) - n_train
-        for i, p in enumerate(paths):
-            if i < n_train:
-                split = "train"
-            elif i < n_train + n_valid:
-                split = "valid"
-            else:
-                split = "test"
-            # 存相对路径（跨平台可移植）+ 数字标签（训练时用整数，不用字符串）
-            splits[split].append((_relpath(p, root), str(class_index[cls])))
+    for cls, groups in per_class.items():
+        for split, paths in _split_groups(groups, split_ratios, rng).items():
+            for path in paths:
+                # 存相对路径（跨平台可移植）+ 数字标签（训练时用整数，不用字符串）
+                splits[split].append((_relpath(path, root), str(class_index[cls])))
 
     bad: list[str] = []
     if validate:
         # 坏图检测：train/valid/test 里混入坏图会导致训练中途崩溃，
         # 且崩的位置难以排查 —— 提前在数据准备阶段就拦下来。
-        for _cls, paths in per_class.items():
-            for p in paths:
-                if not validate_image(p):
-                    bad.append(str(p))
+        for _cls, path in samples:
+            if not validate_image(path):
+                bad.append(str(path))
         if bad:
             raise ManifestError(f"{len(bad)} unreadable images, e.g. {bad[:3]}")
 
@@ -166,7 +210,7 @@ def build_manifest(
 
     # record the data root + classes so manifests are self-describing
     (out_dir / "source.yaml").write_text(
-        yaml.safe_dump({"data_dir": str(root), "classes": classes, "class_index": class_index})
+        yaml.safe_dump(_source_metadata(root, out_dir, classes, class_index), sort_keys=False)
     )
     return manifest_paths
 
@@ -184,10 +228,25 @@ def manifest_classes(manifest_dir: str | Path) -> list[str]:
 
 def manifest_root(manifest_dir: str | Path) -> Path:
     """Return the data root recorded when the manifests were built."""
-    src = Path(manifest_dir) / "source.yaml"
+    manifest_path = Path(manifest_dir)
+    src = manifest_path / "source.yaml"
     if not src.exists():
         raise ManifestError(f"missing {src}; regenerate manifests with prepare-data")
-    return Path(yaml.safe_load(src.read_text())["data_dir"]).resolve()
+    source = yaml.safe_load(src.read_text()) or {}
+    if "data_root" in source:
+        data_root = source["data_root"]
+        if not isinstance(data_root, dict) or "path" not in data_root:
+            raise ManifestError(f"invalid data_root recorded in {src}")
+        path = Path(data_root["path"])
+        relative_to = data_root.get("relative_to")
+        if relative_to == "manifest_dir":
+            return (manifest_path / path).resolve()
+        if relative_to is None and path.is_absolute():
+            return path.resolve()
+        raise ManifestError(f"unsupported data_root schema in {src}: relative_to={relative_to!r}")
+    if "data_dir" in source:
+        return Path(source["data_dir"]).resolve()
+    raise ManifestError(f"no data root recorded in {src}")
 
 
 def load_manifest(manifest_path: str | Path, root_dir: str | Path) -> list[tuple[str, int]]:

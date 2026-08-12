@@ -15,11 +15,11 @@ from garbage_classifier.models.registry import available_models, create_model, g
 
 def _synthetic_dataset(tmp_path, per_class: dict[str, int] | None = None) -> None:
     per_class = per_class or {"a": 6, "b": 6, "c": 6}
-    for cls, n in per_class.items():
+    for cls_index, (cls, n) in enumerate(per_class.items()):
         d = tmp_path / "data" / cls
         d.mkdir(parents=True)
         for i in range(n):
-            Image.new("RGB", (32, 32), color=(i * 40 % 255, 10, 200)).save(d / f"{cls}{i}.jpg")
+            Image.new("RGB", (32, 32), color=(i * 40 % 255, cls_index * 40, 200)).save(d / f"{cls}{i}.jpg")
 
 
 @pytest.mark.parametrize(

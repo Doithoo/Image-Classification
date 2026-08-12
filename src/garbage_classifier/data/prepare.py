@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .manifest import build_manifest, find_duplicates
+from .manifest import build_manifest
 
 
 def prepare_data(
@@ -16,23 +16,16 @@ def prepare_data(
 ) -> dict[str, Path]:
     """Generate train/valid/test CSV manifests; returns {split: manifest_path}.
 
-    Optionally detects content-duplicate images (same bytes, different names)
-    before splitting — ``strict=True`` refuses to continue when duplicates exist.
+    Content-identical images stay in one split. ``strict=True`` refuses any
+    duplicate, while cross-class duplicates always fail as annotation conflicts.
     """
-    dups = find_duplicates(data_dir)
-    if dups:
-        n = sum(len(g) - 1 for g in dups)
-        print(f"warning: {n} duplicate images found (same content, different names); e.g. {dups[0][:2]}")
-        if strict:
-            print("strict mode: aborting")
-            raise SystemExit(1)
-
     manifests = build_manifest(
         data_dir,
         manifest_dir,
         split_ratios=split_ratios,
         seed=seed,
         validate=True,
+        strict=strict,
     )
     print(f"manifests written to {manifest_dir}:")
     for split, path in manifests.items():
