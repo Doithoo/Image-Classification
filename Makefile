@@ -11,7 +11,7 @@ test:
 	pytest tests/ -q
 
 prepare-data:
-	garbage prepare-data --set data.data_dir Garbage_classification
+	garbage prepare-data --set data.data_dir data/raw
 
 smoke:  ## 1-epoch CPU smoke run on real data
 	garbage train --config configs/resnet50.yaml \

@@ -22,6 +22,10 @@ venv/
 artifacts/
 *.pth
 
-# ---- 数据（重构后由脚本下载，不入库） ----
+# ---- 数据（由 scripts/download_data.py 从 GitHub Release 下载，不入库） ----
 data/
+Garbage_classification/
+train/
+valid/
+test/
 *.txt

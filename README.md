@@ -38,8 +38,9 @@ This is the refactored successor of the original script-based project (see
 # 1. install (Python >= 3.10)
 uv pip install -e ".[dev]"          # or: pip install -e ".[dev]"
 
-# 2. data: generate portable manifests from class-folder data
-garbage prepare-data --set data.data_dir <path/to/class-folders>
+# 2. data: download the dataset (GitHub Release, SHA-256 verified) and generate manifests
+python scripts/download_data.py          # -> data/raw/
+garbage prepare-data --set data.data_dir data/raw
 
 # 3. train (config-driven; see configs/)
 garbage train --config configs/resnet50.yaml
@@ -96,8 +97,16 @@ usage; `available_models()` lists all registry keys.
 - **Imbalance**: `trash` is only 5.4% of training data while `paper` is 23.5% —
   accuracy alone is misleading, so evaluation always reports balanced accuracy,
   macro/weighted F1 and per-class metrics.
-- The dataset is not stored in git; see `scripts/download_data.py`
-  (release hosting is pending — until then point `--data-dir` at a local copy).
+- Hosted as a GitHub Release asset (not in git):
+  `garbage-classification-v1.0.tar.gz` (39.7 MB, SHA-256
+  `acde700f…c0582ab`). Fetch it with:
+
+  ```bash
+  python scripts/download_data.py        # verifies checksum, extracts to data/raw/
+  ```
+
+  If the original Kaggle source is ever needed for attribution, it is the
+  "Garbage classification" dataset (2,527 images, 6 classes).
 
 ## Project structure
 
@@ -129,10 +138,12 @@ docs/baseline.md     frozen pre-refactor state
 - [x] Baseline freeze & engineering foundation (package, config, CLI, tests, CI)
 - [x] Portable manifests & reproducible split
 - [x] Training/evaluation/inference core
+- [x] Dataset release (GitHub Release asset + verified download script)
+- [ ] Upload the release asset (one manual step)
 - [ ] Imbalance ablations (weighted loss / sampler vs none)
 - [ ] Legacy model migration (registry shim + consistency check)
 - [ ] ONNX export & demo app
-- [ ] Dataset release (GitHub Release / HuggingFace) + v1.0
+- [ ] v1.0 release
 
 ## Contributing
 
