@@ -1,3 +1,11 @@
+"""ShuffleNetV2 (2018) - 把"理论 FLOPs"和"实际速度"对齐。
+
+学习要点：
+  - 论文的四条实用准则：通道均衡、组卷积少用、碎片化少用、逐元素操作少用。
+  - 通道洗牌（channel shuffle）：让分组卷积之间信息流通，避免"组间隔离"。
+  - 代码里 channel_shuffle 就是那个核心操作。
+"""
+
 # @Author  : James
 # @File    : shufflenet.py
 # @Description :

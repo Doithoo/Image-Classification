@@ -1,3 +1,12 @@
+"""MobileNetV2 (2018) - 移动端友好的深度可分离卷积。
+
+学习要点：
+  - 深度可分离卷积 = Depthwise（每通道独立卷积）+ Pointwise（1x1 融合通道），
+    参数和计算量约为标准卷积的 1/9。
+  - 倒残差块（Inverted Residual）：先 1x1 升维、再深度卷积、再 1x1 降维，
+    与 ResNet 的"降维-卷积-升维"正好相反（所以叫"倒"）。
+"""
+
 # @Author  : James
 # @File    : mobilenetv2.py
 # @Description :

@@ -1,3 +1,13 @@
+"""Swin Transformer (2021) - 分层 + 移动窗口的 ViT。
+
+学习要点：
+  - 解决 ViT 的两个问题：1) patch 固定导致多尺度缺失 -> 用分层金字塔；
+    2) 全局注意力计算量随分辨率平方增长 -> 用局部窗口注意力。
+  - 窗口在相邻层间"移动"（shifted window），让信息跨窗口流动。
+  - 结构上更像"CNN 化的 Transformer"：与 ResNet 的 stage 布局对齐，
+    因此容易作为 backbone 替换 CNN。
+"""
+
 # @Author  : James
 # @File    : swin_transformer.py
 # @Description :

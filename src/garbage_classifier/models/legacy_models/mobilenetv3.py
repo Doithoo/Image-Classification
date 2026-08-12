@@ -1,3 +1,11 @@
+"""MobileNetV3 (2019) - 神经架构搜索 + 硬件感知调优。
+
+学习要点：
+  - 在 MobileNetV2 基础上加入 SE（通道注意力）模块和 h-swish 激活。
+  - 网络结构本身是 NAS（神经架构搜索）搜出来的 - 人写的结构 vs 机器搜的结构。
+  - small/large 两个版本：按计算预算选择。
+"""
+
 # @Author  : James
 # @File    : mobilenetv3.py
 # @Description :

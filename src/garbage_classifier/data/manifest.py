@@ -93,13 +93,18 @@ def build_manifest(
         raise ManifestError(f"no images found under {root}")
 
     classes = sorted({c for c, _ in samples})
-    class_index = {c: i for i, c in enumerate(classes)}
+    class_index = {c: i for i, c in enumerate(classes)}  # 类别名 -> 数字标签（字母序）
 
-    # stratified shuffle per class, then assign to splits by ratio
+    # ---- 分层切分（stratified split）----
+    # 为什么不全局打乱再切？因为某个类别可能样本很少，全局打乱后可能全部挤进
+    # 训练集。分层 = 对每个类别独立打乱，再按同一比例切，保证每个类别在
+    # train/valid/test 中的比例一致。
     per_class: dict[str, list[Path]] = {c: [] for c in classes}
     for cls, path in samples:
         per_class[cls].append(path)
 
+    # 用独立 Random(seed) 实例而不是全局 random：只影响本次切分，不影响
+    # 训练阶段其他随机性；固定 seed 保证任何人重跑得到完全相同的切分。
     rng = random.Random(seed)
     for paths in per_class.values():
         rng.shuffle(paths)
@@ -107,6 +112,8 @@ def build_manifest(
     splits: dict[str, list[tuple[str, str]]] = {"train": [], "valid": [], "test": []}
     for cls, paths in per_class.items():
         n = len(paths)
+        # 按比例算边界：先把前 80% 给 train，再在剩余里取 10% 给 valid，
+        # 余下的给 test。用整数运算避免浮点累积误差。
         n_train = int(n * split_ratios[0])
         n_valid = int(n * (split_ratios[0] + split_ratios[1])) - n_train
         for i, p in enumerate(paths):
@@ -116,10 +123,13 @@ def build_manifest(
                 split = "valid"
             else:
                 split = "test"
+            # 存相对路径（跨平台可移植）+ 数字标签（训练时用整数，不用字符串）
             splits[split].append((_relpath(p, root), str(class_index[cls])))
 
     bad: list[str] = []
     if validate:
+        # 坏图检测：train/valid/test 里混入坏图会导致训练中途崩溃，
+        # 且崩的位置难以排查 —— 提前在数据准备阶段就拦下来。
         for _cls, paths in per_class.items():
             for p in paths:
                 if not validate_image(p):
@@ -139,6 +149,8 @@ def build_manifest(
         manifest_paths[split] = path
 
     # summary + checksum of the train manifest (audit record)
+    # 这份摘要就是"数据审计记录"：类别数、每类数量、切分比例、种子、校验和。
+    # 任何人拿它可以核对"这份切分是不是标准的那份"，是实验可复现的第一环。
     summary_path = out_dir / "summary.txt"
     lines = [
         f"seed={seed}",

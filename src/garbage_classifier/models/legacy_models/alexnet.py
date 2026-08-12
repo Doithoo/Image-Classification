@@ -1,3 +1,11 @@
+"""AlexNet (2012) - 第一个现代 CNN，ImageNet 冠军。
+
+学习要点：
+  - 5 个卷积层 + 3 个全连接层，是"卷积提特征 + 全连接分类"的经典范式。
+  - 用 ReLU（而非 tanh）缓解梯度消失；用 Dropout 防过拟合。
+  - 历史意义大于实用价值：结构已被 ResNet 等超越，但思想仍是所有 CNN 的起点。
+"""
+
 # @Author  : James
 # @File    : alexnet.py
 # @Description :

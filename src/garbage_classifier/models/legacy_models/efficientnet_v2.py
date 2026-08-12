@@ -1,3 +1,11 @@
+"""EfficientNetV2 (2021) - 训练更快、更稳的 EfficientNet。
+
+学习要点：
+  - 针对"训练速度"优化：去掉过大的图像增强依赖、用 Fused-MBConv、
+    渐进式训练策略。
+  - 结构仍以 MBConv 为主，但更关注训练动态而非只看推理 FLOPs。
+"""
+
 # @Author  : James
 # @File    : efficientv2.py
 # @Description :

@@ -206,28 +206,41 @@ class Trainer:
                     # MixUp/CutMix produces soft (one-hot mixed) targets
                     images, soft_labels = self.mixup(images, labels)
                 if train:
+                    # 清空上一步的梯度；set_to_none 比 zero_ 更快且省内存
                     self.optimizer.zero_grad(set_to_none=True)
+
+                # ---- 前向 + 损失 ----
+                # autocast: 前向计算用 float16（省显存、更快），权重仍存 float32。
+                # 这就是混合精度（AMP）：关键数值用高精度，中间计算用低精度。
                 with torch.autocast(device_type=self.device.type, dtype=torch.float16, enabled=self.use_amp):
-                    outputs = self.model(images)
+                    outputs = self.model(images)  # 前向：模型对这批图的预测 logits
                     if train and self.mixup.enabled:
+                        # MixUp 后标签是软标签（概率向量），普通 CrossEntropyLoss
+                        # 只接受整数标签，所以要换软标签版本的损失函数
                         from .mixup import soft_cross_entropy
 
                         loss = soft_cross_entropy(outputs, soft_labels, self.class_weights_tensor)
                     else:
-                        loss = self.loss_fn(outputs, labels)
+                        loss = self.loss_fn(outputs, labels)  # 比较预测与真相
+
                 if train:
+                    # ---- 反向 + 参数更新 ----
                     if self.use_amp and self.device.type == "cuda":
+                        # CUDA 上 float16 梯度可能下溢，用 GradScaler 动态放大梯度；
+                        # 更新前必须 unscale 还原，梯度裁剪也要在 unscale 之后。
                         self.scaler.scale(loss).backward()
                         if self.cfg.train.grad_clip > 0:
                             self.scaler.unscale_(self.optimizer)
                             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.cfg.train.grad_clip)
-                        self.scaler.step(self.optimizer)
-                        self.scaler.update()
+                        self.scaler.step(self.optimizer)  # 若梯度为 NaN/Inf 则跳过本次更新
+                        self.scaler.update()  # 调整下一次的放大倍数
                     else:
-                        loss.backward()
+                        loss.backward()  # 反向传播：算每个参数的梯度
                         if self.cfg.train.grad_clip > 0:
+                            # 梯度裁剪：把整组梯度范数限制在阈值内，防止梯度爆炸
+                            # （常见于深层网络/Transformer）
                             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.cfg.train.grad_clip)
-                        self.optimizer.step()
+                        self.optimizer.step()  # 沿梯度更新参数：w -= lr * grad
                     if train and self.ema is not None:
                         # EMA shadows the weights after EVERY step (decay=0.999 ->
                         # ~6% of the trajectory per epoch at 63 steps/epoch)

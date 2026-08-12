@@ -1,3 +1,14 @@
+"""ResNet (2015) - 残差连接，深度学习的分水岭。
+
+学习要点：
+  - 核心思想：让网络学习"残差" F(x) = H(x) - x，而不是直接学习 H(x)。
+    恒等映射（residual = 0）永远是一条退路，所以几十上百层也能训练不退化。
+  - BasicBlock（18/34 层用）：两个 3x3 卷积。
+  - Bottleneck（50/101/152 层用）：1x1 降维 -> 3x3 卷积 -> 1x1 升维，
+    用更少参数换取更深的网络（"瓶颈"设计）。
+  - 代码里的关键：downsample 分支处理通道数/尺寸不匹配时的恒等映射。
+"""
+
 # @Author  : James
 # @File    : resnet.py
 # @Description :
@@ -142,21 +153,31 @@ class ResNet(nn.Module):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
     def _make_layer(self, block, channel, block_num, stride=1):
+        """堆叠 ``block_num`` 个残差块，组成一个 stage（layer1-4 之一）。
+
+        关键点：每个 stage 的"第一个块"负责下采样（stride=2）并改变通道数
+        （channel * expansion），其余块保持分辨率与通道数不变。
+        当输入尺寸/通道与残差分支不匹配时，需要 downsample 把恒等映射对齐。
+        """
         downsample = None
         if stride != 1 or self.in_channel != channel * block.expansion:
+            # 通道数或分辨率变化时，用 1x1 卷积（stride=2 同时减半分辨率）
+            # 把恒等映射对齐到主分支的输出尺寸，才能做 out += identity
             downsample = nn.Sequential(
                 nn.Conv2d(self.in_channel, channel * block.expansion, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(channel * block.expansion))
 
         layers = []
+        # 第一个块：可能带 downsample / stride=2
         layers.append(block(self.in_channel,
                             channel,
                             downsample=downsample,
                             stride=stride,
                             groups=self.groups,
                             width_per_group=self.width_per_group))
-        self.in_channel = channel * block.expansion
+        self.in_channel = channel * block.expansion  # 后续块的输入通道变了
 
+        # 其余块：输入输出通道一致，不需要 downsample
         for _ in range(1, block_num):
             layers.append(block(self.in_channel,
                                 channel,

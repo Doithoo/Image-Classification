@@ -1,3 +1,12 @@
+"""Vision Transformer (ViT, 2020) - 用 Transformer 直接处理图像块。
+
+学习要点：
+  - 把图像切成 16x16 的 patch，拉平成向量序列，喂给标准 Transformer 编码器。
+  - 位置编码（position embedding）告诉模型每个 patch 在哪。
+  - 与传统 CNN 的归纳偏置（局部性、平移不变）不同，ViT 全靠大规模数据
+    学出这些 - 数据少时通常不如 CNN，数据多时反超。
+"""
+
 # @Author  : James
 # @File    : vit.py
 # @Description :

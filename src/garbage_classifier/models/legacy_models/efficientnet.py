@@ -1,3 +1,11 @@
+"""EfficientNet (2019) - 复合缩放：深度、宽度、分辨率一起放大。
+
+学习要点：
+  - 核心发现：单独加深/加宽/加分辨率收益递减，按固定比例三者一起缩放最优。
+  - b0-b7 就是不同缩放系数的同一条"母网络"。
+  - MBConv 块 = MobileNetV2 倒残差 + SE 注意力，是主干构建单元。
+"""
+
 # @Author  : James
 # @File    : efficientnet.py
 # @Description :

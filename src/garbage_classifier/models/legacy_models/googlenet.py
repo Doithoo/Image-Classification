@@ -1,3 +1,12 @@
+"""GoogLeNet / Inception (2014) - 多尺度特征并行。
+
+学习要点：
+  - Inception 模块：同一层并行跑 1x1、3x3、5x5 卷积 + 池化，再拼接通道，
+    让网络自己决定"这个位置该看多细"。
+  - 辅助分类器（aux_logits）：从中间层引出额外损失，缓解深层梯度消失
+    （现代实践已很少用，故注册时默认关闭）。
+"""
+
 # @Author  : James
 # @File    : googlenet.py
 # @Description :

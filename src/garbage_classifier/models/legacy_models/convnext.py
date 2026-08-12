@@ -1,3 +1,12 @@
+"""ConvNeXt (2022) - 把 Transformer 的先进设计搬回纯 CNN。
+
+学习要点：
+  - 作者把 Swin Transformer 的成功要素（大核卷积、GELU、LayerNorm、
+    inverted bottleneck、更少激活）逐个移植到 ResNet 上。
+  - 结论：很多"Transformer 的优势"其实与注意力无关，纯卷积也能做到。
+  - 教学价值：读它 = 同时理解 ResNet 与现代 Transformer 的设计取舍。
+"""
+
 # @Author  : James
 # @File    : convnext.py
 # @Description :
