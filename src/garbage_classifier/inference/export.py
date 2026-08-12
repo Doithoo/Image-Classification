@@ -36,6 +36,10 @@ def export_onnx(
     device: str = "cpu",
 ) -> Path:
     """Export model weights from a checkpoint to ONNX; returns the output path."""
+    import importlib.util
+
+    if importlib.util.find_spec("onnx") is None:
+        raise SystemExit("onnx is not installed; run: pip install -e '.[onnx]'")
     ckpt = Path(checkpoint_path)
     out = Path(output_path)
     payload = load_checkpoint(ckpt)

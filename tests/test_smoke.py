@@ -118,12 +118,15 @@ def test_train_eval_predict_roundtrip(tmp_path):
     img = next(iter((tmp_path / "data" / "a").glob("*.jpg")))
     assert cmd_predict(_cli_args(cfg_path, checkpoint=str(ckpt), image=str(img), top_k=3)) == 0
 
-    # export-onnx (verification is skipped without onnxruntime; onnx is optional)
-    from garbage_classifier.cli import cmd_export_onnx
+    # export-onnx (requires the optional onnx extra; skipped otherwise)
+    import importlib.util
 
-    assert cmd_export_onnx(_cli_args(cfg_path, checkpoint=str(ckpt), output=str(tmp_path / "model.onnx"))) == 0
-    assert (tmp_path / "model.onnx").exists()
-    assert (tmp_path / "model.onnx.meta.yaml").exists()
+    if importlib.util.find_spec("onnx") is not None:
+        from garbage_classifier.cli import cmd_export_onnx
+
+        assert cmd_export_onnx(_cli_args(cfg_path, checkpoint=str(ckpt), output=str(tmp_path / "model.onnx"))) == 0
+        assert (tmp_path / "model.onnx").exists()
+        assert (tmp_path / "model.onnx.meta.yaml").exists()
 
 
 def test_predictor_from_checkpoint_is_self_contained(tmp_path):
