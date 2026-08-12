@@ -54,3 +54,17 @@ class EMA:
         for name, param in self.shadow.items():
             if name in state:
                 state[name].copy_(param)
+
+    def state_dict(self) -> dict[str, object]:
+        """Return a serializable copy of the EMA state."""
+        return {"decay": self.decay, "shadow": {name: value.clone() for name, value in self.shadow.items()}}
+
+    def load_state_dict(self, state: dict[str, object]) -> None:
+        """Restore EMA decay and shadow tensors."""
+        self.decay = float(state.get("decay", self.decay))
+        shadow = state.get("shadow", state)
+        if not isinstance(shadow, dict):
+            raise ValueError("EMA state must contain a shadow mapping")
+        self.shadow = {
+            name: value.detach().clone() for name, value in shadow.items() if isinstance(value, torch.Tensor)
+        }

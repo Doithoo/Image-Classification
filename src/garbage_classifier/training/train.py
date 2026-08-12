@@ -52,6 +52,10 @@ def train_from_config(
     valid_ds = ImageClassificationDataset(
         Path(cfg.data.manifest_dir) / "valid.csv", transform=build_eval_transform(cfg.data)
     )
+    if len(train_ds) == 0:
+        raise ValueError("training dataset is empty; add at least one sample to train.csv")
+    if len(valid_ds) == 0:
+        raise ValueError("validation dataset is empty; add at least one sample to valid.csv")
 
     # class-imbalance handling: loss weights and/or weighted sampling (ablation support)
     train_counts = [0] * len(class_names)
@@ -73,7 +77,9 @@ def train_from_config(
         num_workers=cfg.data.num_workers,
         pin_memory=cfg.data.pin_memory and device.type == "cuda",
         collate_fn=collate_fn,
-        drop_last=True,
+        # Only discard a singleton tail, which can make BatchNorm fail. Tiny
+        # datasets must still yield their one partial batch.
+        drop_last=len(train_ds) >= cfg.train.batch_size and len(train_ds) % cfg.train.batch_size == 1,
     )
     valid_loader = torch.utils.data.DataLoader(
         valid_ds,

@@ -134,6 +134,10 @@ class Trainer:
                 self.ema.apply_to(self.model)
             metrics = self._run_epoch(valid_loader, train=False)
 
+            deployable_state = {k: v.detach().clone() for k, v in self.model.state_dict().items()}
+            if self.ema is not None:
+                self.model.load_state_dict(self._fast_state)
+
             # checkpoint selection happens while EMA weights are applied (if enabled),
             # so best.pt/last.pt store the deployable (EMA) model
             self.epoch = epoch + 1
@@ -142,14 +146,13 @@ class Trainer:
             if improved:
                 self.best_metric = score
                 self.patience_left = self.cfg.train.early_stop_patience
-                self._save("best.pt", metrics)
             else:
                 self.patience_left -= 1
-            self._save("last.pt", metrics)
-
-            if self.ema is not None:
-                # restore fast weights for the next training epoch
-                self.model.load_state_dict(self._fast_state)
+            if self.scheduler is not None:
+                self.scheduler.step()
+            if improved:
+                self._save("best.pt", metrics, deployable_state)
+            self._save("last.pt", metrics, deployable_state)
 
             lr = self.optimizer.param_groups[0]["lr"]
             row = {
@@ -172,9 +175,6 @@ class Trainer:
                 metrics["balanced_accuracy"],
                 metrics["macro_f1"],
             )
-
-            if self.scheduler is not None:
-                self.scheduler.step()
 
             if self.patience_left <= 0:
                 logger.info("early stopping after %d epochs without improvement", epoch + 1)
@@ -252,20 +252,29 @@ class Trainer:
                 total_loss += loss.item()
                 n_batches += 1
 
+        if n_batches == 0:
+            phase = "training" if train else "validation"
+            raise ValueError(f"{phase} loader is empty; provide at least one sample")
         if train:
-            return {"loss": total_loss / max(n_batches, 1)}
+            return {"loss": total_loss / n_batches}
         preds = torch.cat(all_preds).numpy()
         labels = torch.cat(all_labels).numpy()
         metrics = evaluate_predictions(preds, labels, num_classes=len(self.class_names))
-        metrics["loss"] = total_loss / max(n_batches, 1)
+        metrics["loss"] = total_loss / n_batches
         return metrics
 
-    def _save(self, name: str, metrics: dict[str, float]) -> None:
+    def _save(
+        self, name: str, metrics: dict[str, float], deployable_state: dict[str, torch.Tensor] | None = None
+    ) -> None:
         save_checkpoint(
             self.output_dir / name,
             model=self.model,
             optimizer=self.optimizer,
             scheduler=self.scheduler,
+            deployable_state_dict=deployable_state,
+            ema=self.ema,
+            scaler=self.scaler,
+            patience_left=self.patience_left,
             epoch=self.epoch,
             best_metric=self.best_metric,
             cfg=self.cfg,
@@ -275,13 +284,32 @@ class Trainer:
 
     def _resume(self, path: str) -> None:
         payload = load_checkpoint(path)
-        self.model.load_state_dict(payload["model_state_dict"])
+        self.model.load_state_dict(payload["training_model_state_dict"])
         if payload.get("optimizer_state_dict") is not None:
             self.optimizer.load_state_dict(payload["optimizer_state_dict"])
         if payload.get("scheduler_state_dict") is not None and self.scheduler is not None:
             self.scheduler.load_state_dict(payload["scheduler_state_dict"])
         self.epoch = int(payload.get("epoch", 0))
         self.best_metric = float(payload.get("best_metric", -float("inf")))
+        if self.ema is not None and payload.get("ema_state_dict") is not None:
+            self.ema.load_state_dict(payload["ema_state_dict"])
+        if payload.get("scaler_state_dict") is not None:
+            self.scaler.load_state_dict(payload["scaler_state_dict"])
+        if payload.get("patience_left") is not None:
+            self.patience_left = int(payload["patience_left"])
+        rng_state = payload.get("rng_state", {})
+        if "python" in rng_state:
+            import random
+
+            random.setstate(rng_state["python"])
+        if "numpy" in rng_state:
+            import numpy as np
+
+            np.random.set_state(rng_state["numpy"])
+        if "torch" in rng_state:
+            torch.set_rng_state(rng_state["torch"])
+        if torch.cuda.is_available() and rng_state.get("cuda"):
+            torch.cuda.set_rng_state_all(rng_state["cuda"])
         logger.info(
             "resumed from %s at epoch %d (best %s=%.4f)", path, self.epoch, self.cfg.train.best_metric, self.best_metric
         )

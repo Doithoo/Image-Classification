@@ -1,5 +1,6 @@
 """Tests for the learning modules: MixUp/CutMix, EMA, LR warmup."""
 
+import pytest
 import torch
 
 from garbage_classifier.config import load_config
@@ -52,6 +53,22 @@ def test_cutmix_preserves_local_info():
     assert torch.allclose(out_targets.sum(dim=1), torch.ones(8))
 
 
+def test_cutmix_copies_source_pixels_and_uses_actual_patch_area():
+    torch.manual_seed(7)
+    m = MixupCutmix(mixup_alpha=0.0, cutmix_alpha=1.0, num_classes=4)
+    images = torch.stack([torch.full((1, 9, 11), float(i)) for i in range(4)])
+    labels = torch.arange(4)
+
+    mixed, targets = m(images, labels)
+
+    for index in range(len(images)):
+        values = mixed[index].unique()
+        assert all(value.item() in range(4) for value in values)
+        assert len(values) <= 2
+        own_fraction = (mixed[index] == float(index)).float().mean()
+        assert torch.isclose(targets[index, index], own_fraction)
+
+
 def test_soft_cross_entropy_matches_hard_for_onehot():
     torch.manual_seed(2)
     logits = torch.randn(4, 3)
@@ -100,3 +117,38 @@ def test_warmup_then_cosine_scheduler():
     assert lrs[4] > lrs[5] > lrs[8]
     # never exceeds the base lr
     assert max(lrs) <= cfg.train.lr + 1e-9
+
+
+def test_loader_smaller_than_batch_still_updates_model(tmp_path):
+    cfg = load_config(
+        overrides={
+            "train.batch_size": 8,
+            "train.amp": False,
+            "train.mixup_alpha": 0.0,
+            "train.cutmix_alpha": 0.0,
+        }
+    )
+    model = torch.nn.Linear(2, 2)
+    trainer = Trainer(model, cfg, torch.device("cpu"), ["a", "b"], tmp_path)
+    loader = torch.utils.data.DataLoader(
+        torch.utils.data.TensorDataset(torch.tensor([[1.0, 0.0], [0.0, 1.0]]), torch.tensor([0, 1])),
+        batch_size=8,
+        drop_last=False,
+    )
+    before = {name: value.clone() for name, value in model.state_dict().items()}
+
+    result = trainer._run_epoch(loader, train=True)
+
+    assert result["loss"] > 0
+    assert any(not torch.equal(value, before[name]) for name, value in model.state_dict().items())
+
+
+def test_empty_loader_has_clear_error(tmp_path):
+    cfg = load_config(overrides={"train.amp": False})
+    trainer = Trainer(torch.nn.Linear(2, 2), cfg, torch.device("cpu"), ["a", "b"], tmp_path)
+    loader = torch.utils.data.DataLoader(
+        torch.utils.data.TensorDataset(torch.empty(0, 2), torch.empty(0, dtype=torch.long)), batch_size=4
+    )
+
+    with pytest.raises(ValueError, match="training loader is empty"):
+        trainer._run_epoch(loader, train=True)

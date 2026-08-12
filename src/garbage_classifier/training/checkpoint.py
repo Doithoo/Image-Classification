@@ -25,6 +25,10 @@ def save_checkpoint(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer | None = None,
     scheduler: Any | None = None,
+    deployable_state_dict: dict[str, torch.Tensor] | None = None,
+    ema: Any | None = None,
+    scaler: Any | None = None,
+    patience_left: int | None = None,
     epoch: int,
     best_metric: float,
     cfg: ExperimentConfig,
@@ -33,10 +37,18 @@ def save_checkpoint(
 ) -> None:
     """Persist a full checkpoint (weights + state + metadata)."""
     Path(path).parent.mkdir(parents=True, exist_ok=True)
+    training_state = {name: value.detach().clone() for name, value in model.state_dict().items()}
+    deployable_state = deployable_state_dict or training_state
     payload: dict[str, Any] = {
-        "model_state_dict": model.state_dict(),
+        # model_state_dict remains the inference-facing alias for old consumers.
+        "model_state_dict": deployable_state,
+        "training_model_state_dict": training_state,
+        "deployable_model_state_dict": deployable_state,
         "optimizer_state_dict": optimizer.state_dict() if optimizer is not None else None,
         "scheduler_state_dict": scheduler.state_dict() if scheduler is not None else None,
+        "ema_state_dict": ema.state_dict() if ema is not None else None,
+        "scaler_state_dict": scaler.state_dict() if scaler is not None else None,
+        "patience_left": patience_left,
         "epoch": epoch,
         "best_metric": best_metric,
         "config": to_dict(cfg),
@@ -46,6 +58,7 @@ def save_checkpoint(
             "python": random.getstate(),
             "numpy": np.random.get_state(),
             "torch": torch.get_rng_state(),
+            "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
         },
         "extra": extra or {},
     }
@@ -62,4 +75,11 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     missing = required - set(payload)
     if missing:
         raise ValueError(f"checkpoint {p} is missing metadata: {sorted(missing)}")
+    # Normalize legacy checkpoints into the current schema without changing the
+    # inference-facing model_state_dict key.
+    payload.setdefault("training_model_state_dict", payload["model_state_dict"])
+    payload.setdefault("deployable_model_state_dict", payload["model_state_dict"])
+    payload.setdefault("ema_state_dict", None)
+    payload.setdefault("scaler_state_dict", None)
+    payload.setdefault("patience_left", None)
     return payload

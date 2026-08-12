@@ -18,6 +18,8 @@ targets (one-hot vectors) instead of class indices.
 
 from __future__ import annotations
 
+import math
+
 import torch
 
 
@@ -65,12 +67,29 @@ class MixupCutmix:
         # permuted indices: each sample i is mixed with a random partner j != i
         perm = torch.randperm(batch, device=images.device)
 
-        lam = self._sample_lambda(batch, images.device)  # shape [batch]
-        lam = lam.view(batch, 1, 1, 1)  # broadcastable over image dims
+        lam = self._sample_lambda(batch, images.device)
+        if self.mixup_alpha > 0.0:
+            image_lam = lam.view(batch, 1, 1, 1)
+            mixed_images = image_lam * images + (1.0 - image_lam) * images[perm]
+        else:
+            mixed_images = images.clone()
+            height, width = images.shape[-2:]
+            for index in range(batch):
+                cut_ratio = math.sqrt(1.0 - float(lam[index]))
+                cut_height = max(1, int(height * cut_ratio))
+                cut_width = max(1, int(width * cut_ratio))
+                center_y = int(torch.randint(height, (), device=images.device))
+                center_x = int(torch.randint(width, (), device=images.device))
+                y1 = max(0, center_y - cut_height // 2)
+                y2 = min(height, center_y + (cut_height + 1) // 2)
+                x1 = max(0, center_x - cut_width // 2)
+                x2 = min(width, center_x + (cut_width + 1) // 2)
+                mixed_images[index, :, y1:y2, x1:x2] = images[perm[index], :, y1:y2, x1:x2]
+                lam[index] = 1.0 - ((y2 - y1) * (x2 - x1) / (height * width))
 
-        mixed_images = lam * images + (1.0 - lam) * images[perm]
-        mixed_targets = lam.view(batch, 1) * one_hot_mixup_target(labels, self.num_classes, self.label_smoothing) + (
-            1.0 - lam.view(batch, 1)
+        target_lam = lam.view(batch, 1)
+        mixed_targets = target_lam * one_hot_mixup_target(labels, self.num_classes, self.label_smoothing) + (
+            1.0 - target_lam
         ) * one_hot_mixup_target(labels[perm], self.num_classes, self.label_smoothing)
         return mixed_images, mixed_targets
 
