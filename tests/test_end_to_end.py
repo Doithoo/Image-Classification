@@ -13,6 +13,44 @@ from garbage_classifier.inference import Predictor
 from garbage_classifier.models.registry import available_models, create_model, get_num_parameters
 
 
+def test_training_rejects_manifest_class_count_mismatch(tmp_path, monkeypatch):
+    from garbage_classifier.training import train as train_module
+
+    cfg = load_config(
+        overrides={
+            "model.num_classes": 3,
+            "data.manifest_dir": str(tmp_path / "manifests"),
+            "output_dir": str(tmp_path / "artifacts"),
+        }
+    )
+    monkeypatch.setattr(train_module, "manifest_classes", lambda _path: ["paper", "plastic"])
+
+    with pytest.raises(ValueError, match=r"model\.num_classes.*3.*manifest.*2"):
+        train_module.train_from_config(cfg)
+
+
+def test_trainer_uses_manifest_class_count_for_mixup_and_metrics(tmp_path, monkeypatch):
+    from garbage_classifier.training.trainer import Trainer
+
+    cfg = load_config(overrides={"model.num_classes": 3})
+    trainer = Trainer(torch.nn.Linear(2, 2), cfg, torch.device("cpu"), ["paper", "plastic"], tmp_path)
+    assert trainer.mixup.num_classes == 2
+
+    captured = {}
+
+    def fake_metrics(preds, labels, num_classes):
+        captured["num_classes"] = num_classes
+        return {"accuracy": 1.0}
+
+    monkeypatch.setattr("garbage_classifier.training.trainer.evaluate_predictions", fake_metrics)
+    loader = torch.utils.data.DataLoader(
+        torch.utils.data.TensorDataset(torch.ones(2, 2), torch.tensor([0, 1])), batch_size=2
+    )
+    trainer._run_epoch(loader, train=False)
+
+    assert captured["num_classes"] == 2
+
+
 def _synthetic_dataset(tmp_path, per_class: dict[str, int] | None = None) -> None:
     per_class = per_class or {"a": 6, "b": 6, "c": 6}
     for cls_index, (cls, n) in enumerate(per_class.items()):
@@ -63,6 +101,7 @@ def _tiny_train(tmp_path):
             "data.num_workers": 0,
             "data.pin_memory": False,
             "model.name": "mobilenetv3_small_100",
+            "model.num_classes": 3,
             "model.pretrained": False,
             "train.epochs": 2,
             "train.batch_size": 4,

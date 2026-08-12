@@ -42,7 +42,6 @@ class ModelConfig:
     name: str = "resnet50"  # key of the model registry (timm model or legacy_* name)
     num_classes: int = 6
     pretrained: bool = True
-    timm_backbone: str | None = None  # explicit timm name, overrides ``name`` if set
 
 
 @dataclass
@@ -84,11 +83,14 @@ class ExperimentConfig:
     log_level: str = "info"
 
 
-def _from_dict(cls: type[Any], data: dict[str, Any]) -> Any:
-    """Build a dataclass from a dict, ignoring unknown keys (forward compatible)."""
+def _from_dict(cls: type[Any], data: dict[str, Any], section: str) -> Any:
+    """Build a dataclass from a dict, rejecting misspelled fields."""
     valid = {f.name for f in fields(cls)}
-    kwargs = {k: v for k, v in data.items() if k in valid}
-    return cls(**kwargs)
+    unknown = set(data) - valid
+    if unknown:
+        key = sorted(unknown)[0]
+        raise ValueError(f"unknown config key: {section}.{key}")
+    return cls(**data)
 
 
 def load_config(path: str | Path | None = None, overrides: dict[str, Any] | None = None) -> ExperimentConfig:
@@ -102,11 +104,13 @@ def load_config(path: str | Path | None = None, overrides: dict[str, Any] | None
         if not p.exists():
             raise FileNotFoundError(f"config file not found: {p}")
         raw = yaml.safe_load(p.read_text()) or {}
+        if not isinstance(raw, dict):
+            raise ValueError(f"config root must be a mapping, got {raw!r}")
 
     cfg = ExperimentConfig()
     for section, values in raw.items():
         if section in ("data", "model", "train") and isinstance(values, dict):
-            setattr(cfg, section, _from_dict(getattr(cfg, section).__class__, values))
+            setattr(cfg, section, _from_dict(getattr(cfg, section).__class__, values, section))
         elif section in ("device", "output_dir", "run_name", "log_level"):
             setattr(cfg, section, values)
         else:
@@ -114,16 +118,143 @@ def load_config(path: str | Path | None = None, overrides: dict[str, Any] | None
 
     if overrides:
         _apply_overrides(cfg, overrides)
+    _validate_config(cfg)
     return cfg
 
 
 def _apply_overrides(cfg: ExperimentConfig, overrides: dict[str, Any]) -> None:
     for dotted_key, value in overrides.items():
         parts = dotted_key.split(".")
-        obj: Any = cfg
-        for part in parts[:-1]:
-            obj = getattr(obj, part)
-        setattr(obj, parts[-1], value)
+        if len(parts) == 1 and parts[0] in {"device", "output_dir", "run_name", "log_level"}:
+            setattr(cfg, parts[0], value)
+            continue
+        if len(parts) != 2 or parts[0] not in {"data", "model", "train"}:
+            raise ValueError(f"unknown config key: {dotted_key}")
+        obj = getattr(cfg, parts[0])
+        if parts[1] not in {f.name for f in fields(obj)}:
+            raise ValueError(f"unknown config key: {dotted_key}")
+        setattr(obj, parts[1], value)
+
+
+def _fail(key: str, value: Any, requirement: str) -> None:
+    raise ValueError(f"invalid {key}={value!r}; expected {requirement}")
+
+
+def _require_type(key: str, value: Any, expected: type[Any]) -> None:
+    if type(value) is not expected:
+        _fail(key, value, expected.__name__)
+
+
+def _require_number(key: str, value: Any) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        _fail(key, value, "a number")
+    return float(value)
+
+
+def _require_enum(key: str, value: Any, allowed: tuple[str, ...]) -> None:
+    _require_type(key, value, str)
+    if value not in allowed:
+        _fail(key, value, f"one of: {', '.join(allowed)}")
+
+
+def _require_int_range(key: str, value: Any, minimum: int, *, inclusive: bool = True) -> None:
+    _require_type(key, value, int)
+    if value < minimum if inclusive else value <= minimum:
+        operator = ">=" if inclusive else ">"
+        _fail(key, value, f"an integer {operator} {minimum}")
+
+
+def _validate_triplet(key: str, value: Any, *, positive: bool) -> None:
+    if not isinstance(value, list) or len(value) != 3:
+        _fail(key, value, "a list of three numbers")
+    numbers = [_require_number(key, item) for item in value]
+    if any(item <= 0 if positive else not 0 <= item <= 1 for item in numbers):
+        interval = "(0, 1]" if positive else "[0, 1]"
+        _fail(key, value, f"three values in {interval}")
+    if positive and any(item > 1 for item in numbers):
+        _fail(key, value, "three values in (0, 1]")
+
+
+def _validate_config(cfg: ExperimentConfig) -> None:
+    """Validate the fully resolved configuration in one place."""
+    for key, value in (
+        ("data.data_dir", cfg.data.data_dir),
+        ("data.manifest_dir", cfg.data.manifest_dir),
+        ("model.name", cfg.model.name),
+        ("output_dir", cfg.output_dir),
+        ("train.best_metric", cfg.train.best_metric),
+    ):
+        _require_type(key, value, str)
+        if not value:
+            _fail(key, value, "a non-empty string")
+    if cfg.run_name is not None:
+        _require_type("run_name", cfg.run_name, str)
+
+    for key, value in (
+        ("data.seed", cfg.data.seed),
+        ("train.seed", cfg.train.seed),
+    ):
+        _require_type(key, value, int)
+    for key, value, minimum in (
+        ("data.image_size", cfg.data.image_size, 1),
+        ("data.resize_size", cfg.data.resize_size, 1),
+        ("data.num_workers", cfg.data.num_workers, 0),
+        ("model.num_classes", cfg.model.num_classes, 1),
+        ("train.epochs", cfg.train.epochs, 1),
+        ("train.batch_size", cfg.train.batch_size, 1),
+        ("train.warmup_epochs", cfg.train.warmup_epochs, 0),
+        ("train.early_stop_patience", cfg.train.early_stop_patience, 0),
+    ):
+        _require_int_range(key, value, minimum)
+    if cfg.data.resize_size < cfg.data.image_size:
+        _fail("data.resize_size", cfg.data.resize_size, f">= data.image_size ({cfg.data.image_size})")
+    for key, value in (
+        ("data.pin_memory", cfg.data.pin_memory),
+        ("model.pretrained", cfg.model.pretrained),
+        ("train.amp", cfg.train.amp),
+        ("train.ema", cfg.train.ema),
+    ):
+        _require_type(key, value, bool)
+
+    if not isinstance(cfg.data.classes, list) or not cfg.data.classes:
+        _fail("data.classes", cfg.data.classes, "a non-empty list of unique class names")
+    if any(type(name) is not str or not name for name in cfg.data.classes) or len(set(cfg.data.classes)) != len(
+        cfg.data.classes
+    ):
+        _fail("data.classes", cfg.data.classes, "a non-empty list of unique class names")
+
+    _validate_triplet("data.normalize_mean", cfg.data.normalize_mean, positive=False)
+    _validate_triplet("data.normalize_std", cfg.data.normalize_std, positive=True)
+    if not isinstance(cfg.data.split_ratios, list) or len(cfg.data.split_ratios) != 3:
+        _fail("data.split_ratios", cfg.data.split_ratios, "three non-negative numbers summing to 1")
+    ratios = [_require_number("data.split_ratios", item) for item in cfg.data.split_ratios]
+    if any(item < 0 for item in ratios) or abs(sum(ratios) - 1.0) > 1e-9:
+        _fail("data.split_ratios", cfg.data.split_ratios, "three non-negative numbers summing to 1")
+
+    _require_enum("data.aug", cfg.data.aug, ("basic", "randaug"))
+    _require_enum("train.optimizer", cfg.train.optimizer, ("adamw", "sgd", "lion"))
+    _require_enum("train.scheduler", cfg.train.scheduler, ("cosine", "step", "none"))
+    _require_enum("train.class_weight", cfg.train.class_weight, ("none", "inverse", "effective"))
+    _require_enum("train.sampler", cfg.train.sampler, ("none", "weighted"))
+    _require_enum("device", cfg.device, ("auto", "cpu", "cuda", "mps"))
+    _require_enum("log_level", cfg.log_level, ("debug", "info", "warning", "error", "critical"))
+
+    numeric_ranges = (
+        ("train.lr", cfg.train.lr, 0.0, None, False, True),
+        ("train.weight_decay", cfg.train.weight_decay, 0.0, None, True, True),
+        ("train.momentum", cfg.train.momentum, 0.0, 1.0, True, False),
+        ("train.label_smoothing", cfg.train.label_smoothing, 0.0, 1.0, True, False),
+        ("train.mixup_alpha", cfg.train.mixup_alpha, 0.0, None, True, True),
+        ("train.cutmix_alpha", cfg.train.cutmix_alpha, 0.0, None, True, True),
+        ("train.grad_clip", cfg.train.grad_clip, 0.0, None, True, True),
+        ("train.ema_decay", cfg.train.ema_decay, 0.0, 1.0, True, False),
+    )
+    for key, value, low, high, include_low, include_high in numeric_ranges:
+        number = _require_number(key, value)
+        if number < low or (number == low and not include_low):
+            _fail(key, value, f">{'=' if include_low else ''} {low}")
+        if high is not None and (number > high or (number == high and not include_high)):
+            _fail(key, value, f"<{'=' if include_high else ''} {high}")
 
 
 def to_dict(cfg: ExperimentConfig) -> dict[str, Any]:

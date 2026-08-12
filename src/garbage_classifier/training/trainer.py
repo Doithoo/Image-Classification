@@ -91,7 +91,7 @@ class Trainer:
         self.mixup = MixupCutmix(
             mixup_alpha=t.mixup_alpha,
             cutmix_alpha=t.cutmix_alpha,
-            num_classes=cfg.model.num_classes,
+            num_classes=len(class_names),
             label_smoothing=t.label_smoothing,
         )
         self.ema: EMA | None = EMA(model, decay=t.ema_decay) if t.ema else None
@@ -256,7 +256,7 @@ class Trainer:
             return {"loss": total_loss / max(n_batches, 1)}
         preds = torch.cat(all_preds).numpy()
         labels = torch.cat(all_labels).numpy()
-        metrics = evaluate_predictions(preds, labels, num_classes=self.cfg.model.num_classes)
+        metrics = evaluate_predictions(preds, labels, num_classes=len(self.class_names))
         metrics["loss"] = total_loss / max(n_batches, 1)
         return metrics
 

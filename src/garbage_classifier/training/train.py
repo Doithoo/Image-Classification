@@ -40,17 +40,11 @@ def train_from_config(
     dump_config(cfg, run_dir / "config.yaml")
     logger.info("run dir: %s", run_dir)
 
-    # class names come from the manifest (source of truth); config is a fallback
-    try:
-        class_names = manifest_classes(cfg.data.manifest_dir)
-        if len(class_names) != cfg.model.num_classes:
-            logger.warning(
-                "manifest classes (%d) differ from config num_classes (%d); using manifest",
-                len(class_names),
-                cfg.model.num_classes,
-            )
-    except Exception:
-        class_names = cfg.data.classes
+    class_names = manifest_classes(cfg.data.manifest_dir)
+    if len(class_names) != cfg.model.num_classes:
+        raise ValueError(
+            f"model.num_classes={cfg.model.num_classes} does not match manifest class count {len(class_names)}"
+        )
 
     train_ds = ImageClassificationDataset(
         Path(cfg.data.manifest_dir) / "train.csv", transform=build_train_transform(cfg.data)
