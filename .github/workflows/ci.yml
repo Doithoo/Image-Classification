@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  lint-and-test:
+  checks:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -14,25 +14,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: true
 
-      - name: Install CPU torch
+      - name: Install locked environment
+        run: uv sync --locked --all-extras --dev
+
+      - name: Ruff
         run: |
-          pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
+          uv run ruff check src/ tests/
+          uv run ruff format --check src/ tests/
 
-      - name: Install package
-        run: |
-          pip install -e ".[dev,onnx]"
-
-      - name: Lint
-        run: ruff check src/ tests/
+      - name: Pre-commit
+        run: uv run pre-commit run --all-files
 
       - name: Test
-        run: pytest tests/ -q
+        run: uv run pytest tests/ -q
 
       - name: CLI smoke (help + version)
         run: |
-          garbage --version
-          garbage prepare-data --help
+          uv run garbage --version
+          uv run garbage prepare-data --help
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked --all-extras --dev
+      - name: Build and validate distributions
+        run: |
+          uv build
+          uv run twine check dist/*
+      - name: Clean wheel console smoke
+        run: |
+          uv venv --python 3.12 /tmp/garbage-wheel-smoke
+          uv pip install --python /tmp/garbage-wheel-smoke/bin/python dist/*.whl
+          /tmp/garbage-wheel-smoke/bin/garbage --version

@@ -1,4 +1,4 @@
-.PHONY: install lint test prepare-data smoke
+.PHONY: install lint test prepare-data smoke clean
 
 install:
 	uv pip install -e ".[dev]"
@@ -19,5 +19,5 @@ smoke:  ## 1-epoch CPU smoke run on real data
 		--set data.num_workers 0 --set device cpu --set run_name smoke
 
 clean:  ## Remove caches and build artifacts
-	rm -rf .pytest_cache .ruff_cache build dist *.egg-info
+	rm -rf .pytest_cache .ruff_cache build dist *.egg-info src/*.egg-info
 	find . -name __pycache__ -type d -not -path "./.venv/*" -exec rm -rf {} +

@@ -17,6 +17,8 @@ venv/
 .DS_Store
 .pytest_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # ---- 训练产物 ----
 **/save_weight
