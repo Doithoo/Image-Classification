@@ -1,0 +1,41 @@
+name: Learning or documentation issue
+description: Report unclear, incorrect, or inaccessible learning material
+title: "[Learning]: "
+labels: [documentation]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Link the page and section, tutorial step, or code comment.
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Learning goal
+      description: What were you trying to understand or complete?
+    validations:
+      required: true
+  - type: textarea
+    id: blocker
+    attributes:
+      label: What blocked you?
+      description: Quote unclear text or include the command and its output.
+    validations:
+      required: true
+  - type: dropdown
+    id: experience
+    attributes:
+      label: Experience level
+      options:
+        - New to Python or machine learning
+        - Comfortable with Python, new to PyTorch
+        - Comfortable with PyTorch
+        - Advanced practitioner
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement

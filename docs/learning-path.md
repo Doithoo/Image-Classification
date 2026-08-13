@@ -24,6 +24,8 @@
 
 ```bash
 cd Image-Classification
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 uv pip install -e ".[dev]"
 python scripts/download_data.py                    # downloads + verifies SHA-256
 garbage prepare-data --set data.data_dir data/raw  # builds manifests
@@ -46,17 +48,16 @@ meaning data loads, the model builds, and forward+backward work.
 `src/garbage_classifier/data/manifest.py`; `data/manifests/summary.txt`.
 
 **Key ideas**:
-1. **Class imbalance**: `trash` has 109 training images (5.4%), `paper` has 475
-   (23.5%). A model that always guesses `paper` still scores 23.5% accuracy —
-   which is why we later use `balanced_accuracy` / `macro_f1`.
+1. **Class imbalance**: inspect the audited counts in
+   `data/manifests/summary.txt`; use `balanced_accuracy` / `macro_f1` so a
+   majority-class guesser cannot look useful.
 2. **Train/valid/test discipline**: validation picks the model, the test set is
    touched only once at the end. Never tune on the test set.
 3. **Why seed the split**: `seed=666` means everyone running `prepare-data` gets
    the identical split — the first step toward reproducible experiments.
 
-**Check yourself**: if a model guessed `paper` for all 256 test images, what is
-its accuracy? Its balanced accuracy? (Answers: 0.234 and 0.167 — the second
-number reveals the model is useless.)
+**Check yourself**: use the generated summary to calculate the accuracy of a
+model that always predicts the largest class. Its balanced accuracy is 1/6.
 
 ---
 
@@ -69,7 +70,7 @@ number reveals the model is useless.)
 
 **Try**:
 ```bash
-garbage prepare-data --set data.data_dir data/raw --strict   # duplicate detection
+garbage prepare-data --set data.data_dir data/raw --strict
 python -c "
 from garbage_classifier.data import ImageClassificationDataset
 from garbage_classifier.data.transforms import build_train_transform
@@ -80,6 +81,10 @@ img, label = ds[0]
 print(img.shape, label)   # torch.Size([3, 224, 224]) 0
 "
 ```
+
+After `download_data.py` applies the audited patch, strict mode is expected to
+succeed. If you point it at the unpatched upstream v1 tree, its duplicate or
+annotation-conflict diagnostic is expected and tells you which files to audit.
 
 **Key ideas**:
 1. **CSV manifests instead of folder walks**: relative paths + fixed split =

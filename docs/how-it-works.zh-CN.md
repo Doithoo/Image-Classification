@@ -50,9 +50,9 @@ for epoch in range(epochs):
 学习率，再交给 cosine 退火。`SequentialLR` 把两个调度器串起来。
 
 ### 3.2 MixUp / CutMix（软标签数据增强）
-见 `training/mixup.py` 顶部的原理说明。核心是：**把两张图按 λ 混合，标签也按
-同一 λ 混合**，迫使模型学习特征而非死记。启用后损失函数必须接受软标签（概率
-向量），`soft_cross_entropy` 就是干这个的。
+MixUp 混合两张完整图片；CutMix 把一张图的矩形区域替换成另一张图的块。两者都按
+有效图像面积比例混合标签，因此损失函数必须接受软标签。实现说明见
+`training/mixup.py`。
 
 ### 3.3 EMA（权重指数滑动平均）
 见 `training/ema.py` 顶部的原理说明。验证和保存 best 用影子权重，训练继续用
@@ -80,7 +80,8 @@ for epoch in range(epochs):
 
 **好处**：`garbage predict --checkpoint xxx.pt` 不需要你手动告诉它"类别是什么、
 均值方差是多少、模型叫什么" —— 全部从 checkpoint 恢复，杜绝训练/推理配置漂移。
-这也是复现实验的关键：artifact 目录本身就是一次完整实验的存档。
+这能避免推理配置漂移。完整复现实验还需要完全一致的 manifest、源数据/补丁版本与
+依赖锁文件。
 
 ## 5. 评测为什么报这么多指标
 

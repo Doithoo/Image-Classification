@@ -1,13 +1,16 @@
-# Experiments (Reproducible Log)
+# Experiments (Historical Log; Rerun Required)
 
-> Purpose: this is a learning project — these experiments demonstrate the full
-> workflow (train → evaluate → plot → compare), and every command is directly
-> reproducible. Hardware: Apple Silicon (MPS).
+> **Deprecated baseline:** every number below was produced from the unpatched
+> upstream v1 dataset. That data contained reviewed annotation errors and a
+> cross-class duplicate, and the historical workflow repeatedly inspected the
+> test split while comparing techniques. These results are retained only as
+> provenance; they are not a valid current benchmark and must not be compared
+> with runs on audit patch `v1.0-audit.1`.
 >
-> **Ground rule**: the truth about every experiment is `artifacts/<run>/config.yaml`
-> (including the `pretrained` flag), never memory — an early version of this doc
-> mislabeled pretrained fine-tuning as "from scratch", and only the config file
-> exposed the mistake. That is exactly why checkpoints are self-contained.
+> To publish replacements, archive the dependency lock, source archive checksum,
+> patch version, generated manifests, resolved config and checkpoint. Select
+> models on validation, then evaluate the chosen model on test once. No new
+> numbers are claimed here until that rerun is complete.
 >
 > **中文版：[experiments.zh-CN.md](experiments.zh-CN.md)**
 
@@ -67,7 +70,7 @@ is chosen by validation balanced accuracy.
 | inverse loss | 0.836 | 0.812 | 0.790 | 0.600 | 0.643 | 0.621 |
 | weighted sampler | **0.837** | 0.816 | 0.812 | 0.647 | **0.786** | 0.710 |
 
-**Lessons (counter-intuitive but real)**:
+**Historical observations (not current conclusions)**:
 1. Rebalancing wins on the **validation** set but the baseline wins on the
    **test** set — model selection on validation does not guarantee transfer to
    the test set, and the smaller the sample the larger the variance.

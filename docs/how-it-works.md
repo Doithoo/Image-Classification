@@ -57,10 +57,9 @@ Warmup climbs linearly from 1% to the target LR, then hands over to cosine
 annealing. `SequentialLR` chains the two schedulers.
 
 ### 3.2 MixUp / CutMix (soft-label augmentation)
-See the header of `training/mixup.py` for the full rationale. Core idea: **blend
-two images with λ and blend their labels with the same λ**, forcing the model to
-learn features instead of memorizing pixels. Once enabled, the loss must accept
-soft targets (probability vectors) — that is what `soft_cross_entropy` is for.
+MixUp blends two whole images; CutMix replaces a rectangular region with a patch
+from another image. Both mix labels by the effective image-area ratio, so the
+loss must accept soft targets. See `training/mixup.py` for implementation notes.
 
 ### 3.3 EMA (exponential moving average of weights)
 See the header of `training/ema.py`. Validation and best-checkpoint saving use
@@ -93,8 +92,8 @@ preprocessing stats + the full config + git revision + RNG state.
 **Payoff**: `garbage predict --checkpoint xxx.pt` needs no manual class names,
 normalization statistics or model name — everything is restored from the
 checkpoint, so train/inference configuration can never drift. This is also the
-key to reproducibility: an artifact directory *is* the archive of a complete
-experiment.
+This prevents inference-time drift. Full experiment reproduction additionally
+needs the exact manifest, source-data/patch version and dependency lock.
 
 ## 5. Why evaluation reports so many metrics
 

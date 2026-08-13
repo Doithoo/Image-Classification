@@ -41,9 +41,8 @@ and lightweight inference.
 - **Portable data pipeline** — CSV manifests with platform-independent relative
   paths; reproducible stratified split (fixed seed), bad/duplicate image
   validation, data summary + checksum.
-- **Self-contained checkpoints** — weights, optimizer/scheduler state, class map,
-  preprocessing stats, full config, git revision and RNG state; inference needs
-  only the checkpoint, so train/inference configuration can never drift.
+- **Self-contained inference checkpoints** — weights, class map, preprocessing
+  stats and model config travel together, so prediction needs no training config.
 - **Class-imbalance aware** — best checkpoint selected by `balanced_accuracy` /
   `macro_f1`; full per-class precision/recall/F1 report, confusion matrix,
   prediction CSV and error-sample list.
@@ -60,33 +59,51 @@ and lightweight inference.
 ## Quick start
 
 ```bash
-# 1. install (Python >= 3.10, PyTorch >= 2.0)
-uv pip install -e ".[dev]"                 # or: pip install -e ".[dev]"
+# 1. create and activate an environment (Python >= 3.10)
+uv venv
+source .venv/bin/activate                   # Windows: .venv\Scripts\activate
+uv pip install -e ".[dev]"
 
-# 2. data: download the dataset (SHA-256 verified) and build portable manifests
-python scripts/download_data.py            # -> data/raw/ (2,527 images)
+# 2. download, checksum, audit-patch, then build portable manifests
+python scripts/download_data.py            # -> data/raw/
 garbage prepare-data --set data.data_dir data/raw
 
-# 3. train (config-driven; see configs/)
-garbage train --config configs/resnet50.yaml
+# 3. run a lightweight, stable-name MobileNet experiment
+garbage train --config configs/resnet50.yaml \
+  --set model.name mobilenetv3_small_100 \
+  --set train.epochs 3 --set train.batch_size 16 \
+  --set data.num_workers 0 --set run_name quickstart-mobilenet
 
 # 4. evaluate the best checkpoint on the held-out test split
-garbage evaluate --checkpoint artifacts/resnet50-*/best.pt --plot
+garbage evaluate --checkpoint artifacts/quickstart-mobilenet/best.pt --plot
 
 # 5. predict a single image or a whole folder
-garbage predict --checkpoint artifacts/resnet50-*/best.pt --image img.jpg --top-k 3
-garbage predict --checkpoint artifacts/resnet50-*/best.pt --image <folder>
+garbage predict --checkpoint artifacts/quickstart-mobilenet/best.pt \
+  --image data/raw/paper/paper1.jpg --top-k 3
+garbage predict --checkpoint artifacts/quickstart-mobilenet/best.pt --image <folder>
 
-# 6. explore: Grad-CAM heatmap, ONNX export, model size table
-garbage explain  --checkpoint artifacts/resnet50-*/best.pt --image img.jpg
-garbage export-onnx --checkpoint artifacts/resnet50-*/best.pt --output model.onnx
+# 6. explore: Grad-CAM heatmap and model size table
+garbage explain --checkpoint artifacts/quickstart-mobilenet/best.pt \
+  --image data/raw/paper/paper1.jpg
 garbage bench
+```
+
+ONNX and the web demo use optional dependencies:
+
+```bash
+uv pip install -e ".[onnx]"
+garbage export-onnx --checkpoint artifacts/quickstart-mobilenet/best.pt --output model.onnx
+
+uv pip install -e ".[demo]"
+garbage demo --checkpoint artifacts/quickstart-mobilenet/best.pt
 ```
 
 One-line CPU smoke run (sanity check before a long run):
 
 ```bash
-garbage train --config configs/resnet50.yaml --set train.epochs 1 --set device cpu
+garbage train --config configs/resnet50.yaml --set model.name mobilenetv3_small_100 \
+  --set train.epochs 1 --set train.batch_size 8 --set data.num_workers 0 \
+  --set device cpu --set run_name quickstart-smoke
 # or verify the whole pipeline on a single batch:
 garbage train --config configs/resnet50.yaml --dry-run
 ```
@@ -126,9 +143,10 @@ garbage train --config configs/resnet50.yaml \
   --set train.epochs 80
 ```
 
-The fully-resolved config is saved into every run directory
-(`artifacts/<run>/config.yaml`), so **any experiment can be replayed from its
-artifact alone** — this is the backbone of the reproducibility guarantees.
+The resolved config is saved in `artifacts/<run>/config.yaml`. A checkpoint is
+enough for standalone inference. Reproducing a training result additionally
+requires the exact manifests, source data version (including audit patch), and
+dependency lock used by the run; an artifact directory alone is not sufficient.
 
 ## Model zoo (timm backbones)
 
@@ -148,8 +166,9 @@ table with FLOPs; `available_models()` lists all registry keys.
 
 ## Dataset
 
-- 2,527 images (512×384), 6 classes; split 80/10/10 with seed 666 (stratified,
-  matching the historical split exactly).
+- The upstream v1 archive contains 2,527 images. The downloader verifies that
+  archive, then applies audit patch `v1.0-audit.1`, removing three reviewed bad
+  labels/duplicates before the 80/10/10 stratified split.
 - **Imbalance**: `trash` is only 5.4% of training data while `paper` is 23.5% —
   accuracy alone is misleading, so evaluation always reports balanced accuracy,
   macro/weighted F1 and per-class metrics.
@@ -191,14 +210,15 @@ provided (best checkpoint is selected by `balanced_accuracy` in these configs):
 | `configs/imbalance_weighted_loss.yaml` | inverse-frequency class weights in the loss |
 | `configs/imbalance_weighted_sampler.yaml` | `WeightedRandomSampler` (oversample rare classes) |
 
-Results and the (surprising) lessons learned: see
-[`docs/experiments.md`](docs/experiments.md#实验-3类别不平衡三策略对比).
+The historical numbers must be rerun on the audited data; see
+[`docs/experiments.md`](docs/experiments.md#experiment-3-class-imbalance-strategies-mobilenetv3-small-pretrained-15-epochs-no-mixup).
 
 ## Reproducibility guarantees
 
 - [x] fresh env: `pip install -e .` + one CLI command → CPU smoke run
-- [x] any complete experiment replayable from `artifacts/<run>/` alone
-- [x] test split never used for tuning; all comparisons traceable (config+seed+weights)
+- [x] checkpoints carry everything needed for standalone inference
+- [ ] full experiment replay requires archived manifests, source-data/patch
+  version, config, weights and a dependency lock
 - [x] inference never requires manually repeating classes / normalization / model name
 - [x] CI green on lint + unit tests + minimal training flow
 

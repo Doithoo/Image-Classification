@@ -142,8 +142,8 @@ MixUp 生成的样本本身"更难"，但它让模型学特征而非死记。
 - 如果你的目标指标是 **balanced accuracy / macro F1**（每类平等）→ 考虑加权。
 - 如果部署场景**误报成本高**（把金属当垃圾不如漏掉）→ 别加权，保留高 precision。
 - **先跑"不处理"基线**，看稀有类到底差多少，再决定要不要加权 —— 别一上来就加权。
-- 本项目实验 3 的结论：在小数据集上，加权在验证集赢、测试集反而输 ——
-  **用数据说话，不要凭直觉**。
+- 旧实验 3 基于审计前 v1 数据且反复查看测试集，已经废弃；请用审计后 manifest
+  重跑三组配置，再根据验证集选择方案，最后只评测一次测试集。
 
 ## 8. 一份"第一版配置"的决策流程（拿来即用）
 
@@ -168,9 +168,20 @@ MixUp 生成的样本本身"更难"，但它让模型学特征而非死记。
 
 ```bash
 # 练习 1：lr 扫描（§2.3 的命令），记录四条 val_loss 曲线
-# 练习 2：过拟合体验 —— 只用 1 个类别的 50 张图训练，看 val 曲线如何崩
+# 练习 2：为每类复制最多 8 张图，生成真实的小数据 manifest 后体验过拟合
+rm -rf /tmp/garbage-overfit
+for class_dir in data/raw/*; do
+  class=$(basename "$class_dir"); mkdir -p "/tmp/garbage-overfit/$class"
+  find "$class_dir" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) \
+    | head -8 | xargs -I{} cp "{}" "/tmp/garbage-overfit/$class/"
+done
+garbage prepare-data --set data.data_dir /tmp/garbage-overfit \
+  --set data.manifest_dir /tmp/garbage-overfit-manifests
 garbage train --config configs/imbalance_none.yaml --set model.name mobilenetv3_small_100 \
-  --set train.epochs 30 --set data.num_workers 0 --set train.mixup_alpha 0 --set run_name overfit-demo
+  --set data.data_dir /tmp/garbage-overfit \
+  --set data.manifest_dir /tmp/garbage-overfit-manifests \
+  --set train.epochs 30 --set data.num_workers 0 --set train.mixup_alpha 0 \
+  --set run_name overfit-demo
 # 练习 3：打开 mixup 0.2 重跑，对比两条 val 曲线 —— 用图片说明"正则化"的含义
 ```
 

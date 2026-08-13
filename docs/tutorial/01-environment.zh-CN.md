@@ -184,7 +184,7 @@ Kaggle 免费提供 T4 GPU（约 16GB 显存），每周约 30 小时配额。�
 ### 6.4 训练
 
 ```python
-!garbage train --config configs/resnet50.yaml
+!garbage train --config configs/resnet50.yaml --set run_name kaggle-resnet50
 ```
 
 设备自动识别为 `cuda`，日志里会看到 `device: cuda`。
@@ -192,7 +192,8 @@ Kaggle 免费提供 T4 GPU（约 16GB 显存），每周约 30 小时配额。�
 **新手须知**：
 - Kaggle 会话最长 12 小时，超过会断。长时间训练请用 `--resume` 续训：
   ```python
-  !garbage train --config configs/resnet50.yaml --resume artifacts/resnet50-*/last.pt
+  !garbage train --config configs/resnet50.yaml --set run_name kaggle-resnet50 \
+    --resume artifacts/kaggle-resnet50/last.pt
   ```
 - 结果（`artifacts/`）存在临时磁盘，会话结束会丢！想保存：把
   `artifacts/<run>/best.pt` 和 `metrics.csv` 下载到本地，或上传到自己的

@@ -22,7 +22,7 @@
 **唯一要求**：每个类别一个文件夹，文件夹名就是类别名。图片格式支持
 `.jpg/.jpeg/.png`。
 
-本项目自带的数据集（2527 张，6 类）就是这个结构 —— 用
+本项目上游 v1 数据集就是这个结构；下载后会先应用已记录的审计补丁 —— 用
 `python scripts/download_data.py` 下载后解压在 `data/raw/`。
 
 ---
@@ -92,8 +92,8 @@ train_manifest_sha256=57ab9378...
 
 - 固定种子（666）→ 任何人重跑 `prepare-data` 得到**完全相同**的切分 →
   大家的实验结果才能互相比较。
-- 测试集"只碰一次"是纪律：如果你拿测试集调参，你就在"背答案"，报告的数字
-  就不再代表真实水平。本项目测试集从未参与任何调参。
+- 测试集"只碰一次"是纪律：如果你拿测试集调参，报告的数字就不再代表真实水平。
+  历史 v1 基准不能证明严格遵守了这一点，并且使用了审计前数据，因此已经废弃。
 
 ---
 
@@ -114,9 +114,12 @@ cat data/manifests/summary.txt
 
 # 4. 训练（注意：prepare-data 会覆盖旧 manifest，切分以这次为准）
 garbage train --config configs/resnet50.yaml \
-  --set data.data_dir mydata \
-  --set model.num_classes <你的类别数>
+  --set data.data_dir mydata
 ```
+
+只读取 `mydata/<类别>/*.{jpg,jpeg,png}` 这一层；嵌套更深的图片不会被扫描。
+类别表与类别数由生成的 manifest `source.yaml` 决定，不要手工设置
+`model.num_classes`。
 
 **新手常见坑**：
 
@@ -125,7 +128,7 @@ garbage train --config configs/resnet50.yaml \
 | 类别名带空格/中文 | 路径解析怪异 | 类别文件夹名用英文小写+下划线 |
 | 图片损坏 | prepare-data 报 unreadable | 找出坏图删掉或重下 |
 | 图片是黑白的 | 模型输入要求 3 通道 | 代码会自动 `convert('RGB')`，无需处理 |
-| 类别数不是 6 | 训练时警告 | 用 `--set model.num_classes N` 覆盖 |
+| 类别数不是 6 | manifest 类别变化 | 重新运行 `prepare-data`，以 `source.yaml` 为准 |
 | 数据量很小（<1000 张） | 容易过拟合 | 见教程 4：增强 + 预训练 + 早停 |
 | 类别极不平衡（稀有类 <5%） | trash 类指标崩 | 见教程 4 的"不平衡怎么办" |
 

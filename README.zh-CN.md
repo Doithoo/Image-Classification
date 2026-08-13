@@ -36,8 +36,8 @@
   参数，永远不用改源码。
 - **可移植数据管道** —— CSV manifest 使用平台无关的相对路径；固定种子的分层切分、
   坏图/重复图校验、数据摘要与校验和。
-- **自包含 checkpoint** —— 权重、优化器/调度器状态、类别表、预处理参数、完整配置、
-  git revision、随机数状态全部打包；推理只需要 checkpoint，训练/推理配置永不漂移。
+- **自包含推理 checkpoint** —— 权重、类别表、预处理参数与模型配置一起保存，预测时
+  不需要训练配置。
 - **类别不平衡感知** —— 用 `balanced_accuracy` / `macro_f1` 选最优权重；输出每类
   precision/recall/F1、混淆矩阵、预测 CSV 和错误样本清单。
 - **专业训练循环** —— AMP、断点续训、早停、warmup + cosine 学习率、标签平滑、
@@ -51,33 +51,51 @@
 ## 快速开始
 
 ```bash
-# 1. 安装（Python >= 3.10, PyTorch >= 2.0）
-uv pip install -e ".[dev]"                 # 或: pip install -e ".[dev]"
+# 1. 创建并激活环境（Python >= 3.10）
+uv venv
+source .venv/bin/activate                   # Windows: .venv\Scripts\activate
+uv pip install -e ".[dev]"
 
-# 2. 数据：下载数据集（SHA-256 校验）并生成可移植清单
-python scripts/download_data.py            # -> data/raw/（2527 张图）
+# 2. 下载、校验、应用数据审计补丁，再生成可移植清单
+python scripts/download_data.py            # -> data/raw/
 garbage prepare-data --set data.data_dir data/raw
 
-# 3. 训练（配置驱动，见 configs/）
-garbage train --config configs/resnet50.yaml
+# 3. 用稳定运行名训练轻量 MobileNet
+garbage train --config configs/resnet50.yaml \
+  --set model.name mobilenetv3_small_100 \
+  --set train.epochs 3 --set train.batch_size 16 \
+  --set data.num_workers 0 --set run_name quickstart-mobilenet
 
 # 4. 在留出的测试集上评测最优 checkpoint
-garbage evaluate --checkpoint artifacts/resnet50-*/best.pt --plot
+garbage evaluate --checkpoint artifacts/quickstart-mobilenet/best.pt --plot
 
 # 5. 预测单张图 / 整个文件夹
-garbage predict --checkpoint artifacts/resnet50-*/best.pt --image img.jpg --top-k 3
-garbage predict --checkpoint artifacts/resnet50-*/best.pt --image <文件夹>
+garbage predict --checkpoint artifacts/quickstart-mobilenet/best.pt \
+  --image data/raw/paper/paper1.jpg --top-k 3
+garbage predict --checkpoint artifacts/quickstart-mobilenet/best.pt --image <文件夹>
 
-# 6. 进阶工具：Grad-CAM 热力图、ONNX 导出、模型尺寸表
-garbage explain  --checkpoint artifacts/resnet50-*/best.pt --image img.jpg
-garbage export-onnx --checkpoint artifacts/resnet50-*/best.pt --output model.onnx
+# 6. 进阶工具：Grad-CAM 热力图、模型尺寸表
+garbage explain --checkpoint artifacts/quickstart-mobilenet/best.pt \
+  --image data/raw/paper/paper1.jpg
 garbage bench
+```
+
+ONNX 与网页演示使用可选依赖：
+
+```bash
+uv pip install -e ".[onnx]"
+garbage export-onnx --checkpoint artifacts/quickstart-mobilenet/best.pt --output model.onnx
+
+uv pip install -e ".[demo]"
+garbage demo --checkpoint artifacts/quickstart-mobilenet/best.pt
 ```
 
 一行 CPU 冒烟运行（长训练前的快速检查）：
 
 ```bash
-garbage train --config configs/resnet50.yaml --set train.epochs 1 --set device cpu
+garbage train --config configs/resnet50.yaml --set model.name mobilenetv3_small_100 \
+  --set train.epochs 1 --set train.batch_size 8 --set data.num_workers 0 \
+  --set device cpu --set run_name quickstart-smoke
 # 或只跑 1 个 batch 验证整条管线：
 garbage train --config configs/resnet50.yaml --dry-run
 ```
@@ -100,8 +118,8 @@ garbage train --config configs/resnet50.yaml --dry-run
 | 7 | 实验与可复现 | config.yaml 是唯一真相 |
 
 配套文档：[`docs/how-it-works.md`](docs/how-it-works.md) 讲解数据流与训练循环里
-每一项技术的原理；[`docs/experiments.md`](docs/experiments.md) 是一份完全可复现的
-实验日志（含"踩坑教训"章节）。
+每一项技术的原理；[`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md) 保留旧实验
+日志与重跑要求（含"踩坑教训"章节）。
 
 ## 配置系统
 
@@ -115,8 +133,9 @@ garbage train --config configs/resnet50.yaml \
   --set train.epochs 80
 ```
 
-解析后的完整配置会保存进每次运行的目录（`artifacts/<run>/config.yaml`），
-所以**任何实验都能仅凭 artifact 复现** —— 这是可复现性保证的根基。
+解析后的配置会保存到 `artifacts/<run>/config.yaml`。checkpoint 足以独立推理；
+完整复现实验还必须保存当时的 manifest、源数据与审计补丁版本、依赖锁文件，不能只靠
+artifact 目录。
 
 ## 模型库（timm 主干网络）
 
@@ -136,7 +155,8 @@ garbage train --config configs/resnet50.yaml \
 
 ## 数据集
 
-- 2527 张图（512×384），6 类；种子 666 分层切分 80/10/10（与历史切分完全一致）。
+- 上游 v1 压缩包含 2527 张图。下载器先校验压缩包，再应用 `v1.0-audit.1` 审计补丁，
+  删除 3 个已复核的错误标签/重复项，然后按种子 666 分层切分 80/10/10。
 - **不平衡**：`trash` 仅占训练集 5.4%，而 `paper` 占 23.5% —— 只看 accuracy 会
   被误导，所以评测总是输出 balanced accuracy、macro/weighted F1 与每类指标。
 - 托管在 GitHub Release（不在 git 里）：`garbage-classification.tar.gz`
@@ -177,13 +197,14 @@ Image-Classification/
 | `configs/imbalance_weighted_loss.yaml` | loss 中按类别频率反比加权 |
 | `configs/imbalance_weighted_sampler.yaml` | `WeightedRandomSampler`（过采样稀有类） |
 
-实验结果与（反直觉的）教训：见 [`docs/experiments.md`](docs/experiments.md#实验-3类别不平衡三策略对比)。
+旧实验数字需要在审计后数据上重跑：见
+[`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md#实验-3类别不平衡三策略对比mobilenetv3-small-预训练15-epochs无-mixup)。
 
 ## 可复现性保证
 
 - [x] 全新环境：`pip install -e .` + 一条 CLI 命令 → CPU 冒烟运行
-- [x] 任何完整实验可仅凭 `artifacts/<run>/` 复现
-- [x] 测试集从不参与调参；所有模型对比可追溯（配置+种子+权重）
+- [x] checkpoint 携带独立推理所需的信息
+- [ ] 完整复现实验需归档 manifest、源数据/补丁版本、配置、权重和依赖锁文件
 - [x] 推理永远不需要手工重复类别名 / 归一化参数 / 模型名
 - [x] CI 对 lint + 单元测试 + 最小训练流程全绿
 

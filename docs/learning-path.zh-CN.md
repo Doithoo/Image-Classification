@@ -24,6 +24,8 @@
 
 ```bash
 cd Image-Classification
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 uv pip install -e ".[dev]"            # 安装依赖
 python scripts/download_data.py       # 下载数据集（自动校验 SHA-256）
 garbage prepare-data --set data.data_dir data/raw   # 生成清单
@@ -37,8 +39,7 @@ garbage train --config configs/resnet50.yaml --dry-run  # 1 个 batch 冒烟
 
 **读什么**：`README.zh-CN.md` 的「快速开始」和「项目结构」。
 
-**验证题**：`data/manifests/summary.txt` 里三个切分各多少张？每类几张？
-（答案应与文档一致：train 2019 / valid 252 / test 256）
+**验证题**：从这次生成的 `data/manifests/summary.txt` 读出三个切分及每类数量。
 
 ---
 
@@ -51,23 +52,19 @@ garbage train --config configs/resnet50.yaml --dry-run  # 1 个 batch 冒烟
 - `src/garbage_classifier/data/manifest.py` 顶部注释
 - 打开 `data/manifests/summary.txt` 看各类数量
 
-**动手**：
-```bash
-python scripts/plot_metrics.py  # 先不用，阶段 4 再说
-ls data/raw/                    # 看每个类别文件夹
-```
+**动手**：`ls data/raw/` 查看每个类别文件夹。
 
 **核心知识点（务必理解）**：
-1. **类别不平衡**：`trash` 只有 109 张训练图（5.4%），`paper` 有 475 张（23.5%）。
-   一个"永远猜 paper"的模型准确率也有 23.5% —— 所以后面我们用
+1. **类别不平衡**：以审计后 `summary.txt` 的实际数量为准。一个永远猜最多类别的
+   模型也会有看似不低的 accuracy —— 所以后面我们用
    `balanced_accuracy` / `macro_f1`，而不是只看 accuracy。
 2. **训练/验证/测试三分**：验证集用于选模型，测试集只用于最终评估，**绝不碰**。
    这是防止"自欺欺人"的纪律。
 3. **为什么按种子切分**：`seed=666` 保证任何人跑 `prepare-data` 都得到同一份
    切分 —— 这是"可复现实验"的第一步。
 
-**验证题**：如果模型把 test 集 256 张全猜成 `paper`，accuracy 是多少？
-balanced_accuracy 呢？（答案：0.234 和 0.167 —— 后者揭示了模型的"无用"）
+**验证题**：根据 summary 计算全猜最多类别的 accuracy；它的 balanced accuracy
+是多少？（答案：1/6，揭示模型无用。）
 
 ---
 
@@ -82,7 +79,7 @@ balanced_accuracy 呢？（答案：0.234 和 0.167 —— 后者揭示了模型
 
 **动手**：
 ```bash
-garbage prepare-data --set data.data_dir data/raw --strict   # 加重复检测
+garbage prepare-data --set data.data_dir data/raw --strict
 python -c "
 from garbage_classifier.data import ImageClassificationDataset
 from garbage_classifier.data.transforms import build_train_transform
@@ -93,6 +90,9 @@ img, label = ds[0]
 print(img.shape, label)   # torch.Size([3, 224, 224]) 0
 "
 ```
+
+下载脚本应用审计补丁后，strict 模式预期成功。若指向未修补的上游 v1 数据，重复或
+标注冲突诊断属于预期结果，应先按提示审计数据。
 
 **核心知识点**：
 1. **为什么是 CSV manifest 而不是直接遍历文件夹**：相对路径 + 固定切分 =
