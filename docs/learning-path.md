@@ -48,6 +48,7 @@ garbage train --config configs/learning_minimal.yaml \
 meaning data loads, the model builds, and forward+backward work.
 
 **Read**: the "Quick start" and "Project structure" sections of `README.md`.
+Before opening the package file-by-file, follow the [Code Tour](code-tour.md).
 
 ---
 

@@ -78,3 +78,9 @@ def test_relative_markdown_links_resolve():
             if not (document.parent / target).exists():
                 broken.append(f"{document.relative_to(ROOT)} -> {raw_target}")
     assert not broken, "broken relative Markdown links:\n" + "\n".join(broken)
+
+
+def test_beginner_code_tour_and_examples_are_packaged_in_source_tree():
+    assert (ROOT / "docs/code-tour.md").is_file()
+    assert (ROOT / "docs/code-tour.zh-CN.md").is_file()
+    assert len(list((ROOT / "examples").glob("[0-9][0-9]_*.py"))) == 5

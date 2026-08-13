@@ -1,4 +1,9 @@
-"""Training command logic: build datasets/loaders and run the Trainer."""
+"""Training command logic: assemble datasets, model and Trainer.
+
+Beginner reading order follows this function from top to bottom:
+configuration -> datasets -> loaders -> model -> Trainer. The class-imbalance
+block is optional and can be skipped when reading ``learning_minimal.yaml``.
+"""
 
 from __future__ import annotations
 

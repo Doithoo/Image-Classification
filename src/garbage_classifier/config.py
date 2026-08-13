@@ -1,8 +1,12 @@
-"""Configuration system: typed dataclasses loaded from YAML with sensible defaults.
+"""Configuration system: typed dataclasses loaded from YAML with defaults.
 
 A config file may override any subset of the defaults. The full resolved config is
 saved into every experiment artifact, so runs are reproducible from the artifact
 alone (see ``garbage_classifier.training.checkpoint``).
+
+Beginner reading order: read ``DataConfig``, ``ModelConfig`` and ``TrainConfig``
+first. The functions below ``load_config`` implement strict parsing and can be
+skipped until you want to understand configuration error handling.
 """
 
 from __future__ import annotations

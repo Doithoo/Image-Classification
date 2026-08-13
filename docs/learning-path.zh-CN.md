@@ -47,6 +47,7 @@ garbage train --config configs/learning_minimal.yaml \
   —— 这代表：数据能读、模型能建、前向反向都能跑。
 
 **读什么**：`README.zh-CN.md` 的「快速开始」和「项目结构」。
+准备读源码时先跟着[代码导览](code-tour.zh-CN.md)，不要从 `cli.py` 顺序通读。
 
 **验证题**：从这次生成的 `data/manifests/summary.txt` 读出三个切分及每类数量。
 

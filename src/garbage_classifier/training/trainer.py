@@ -1,4 +1,11 @@
-"""Trainer: training loop with AMP, resume, early stopping and best-checkpointing."""
+"""Trainer: training loop with AMP, resume, early stopping and checkpoints.
+
+Beginner reading order:
+1. Run ``examples/03_minimal_training.py`` to see the five-line core loop.
+2. Read ``Trainer._run_epoch`` and follow the ``BASIC LOOP`` comments.
+3. Read ``Trainer.fit`` to see validation, logging and checkpointing per epoch.
+4. Return to ``__init__`` for optimizer, scheduler, MixUp and EMA setup.
+"""
 
 from __future__ import annotations
 
@@ -22,7 +29,7 @@ logger = logging.getLogger("garbage_classifier.trainer")
 class Trainer:
     """Wraps the full train/validate loop.
 
-    Highlights (vs the legacy train.py):
+    Features layered around the basic training loop:
     - AMP (autocast + GradScaler) on cuda/mps
     - best/last checkpoints with full metadata (resume-safe)
     - early stopping on the configured metric
@@ -202,6 +209,8 @@ class Trainer:
         with torch.set_grad_enabled(train):
             for images, labels in loader:
                 images, labels = images.to(self.device), labels.to(self.device)
+                # ENHANCEMENT: MixUp/CutMix modifies inputs and targets before
+                # the basic loop. With the minimal config this branch is skipped.
                 if train and self.mixup.enabled:
                     # MixUp/CutMix produces soft (one-hot mixed) targets
                     images, soft_labels = self.mixup(images, labels)
@@ -209,7 +218,7 @@ class Trainer:
                     # 清空上一步的梯度；set_to_none 比 zero_ 更快且省内存
                     self.optimizer.zero_grad(set_to_none=True)
 
-                # ---- 前向 + 损失 ----
+                # ---- BASIC LOOP 1/2: forward pass + loss -----------------
                 # autocast: 前向计算用 float16（省显存、更快），权重仍存 float32。
                 # 这就是混合精度（AMP）：关键数值用高精度，中间计算用低精度。
                 with torch.autocast(device_type=self.device.type, dtype=torch.float16, enabled=self.use_amp):
@@ -224,7 +233,7 @@ class Trainer:
                         loss = self.loss_fn(outputs, labels)  # 比较预测与真相
 
                 if train:
-                    # ---- 反向 + 参数更新 ----
+                    # ---- BASIC LOOP 2/2: backward pass + parameter update -
                     if self.use_amp and self.device.type == "cuda":
                         # CUDA 上 float16 梯度可能下溢，用 GradScaler 动态放大梯度；
                         # 更新前必须 unscale 还原，梯度裁剪也要在 unscale 之后。
