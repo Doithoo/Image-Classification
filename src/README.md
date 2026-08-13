@@ -32,7 +32,7 @@ data/ → models/ → training/
 
 `cli.py` is a presentation layer. It does not contain model-training logic.
 `legacy_models/` contains hand-written architecture references and is optional
-reading. Generated `*.egg-info/` and `__pycache__/` directories can be ignored.
+reading.
 
 ## Parameter flow
 

@@ -42,8 +42,3 @@ garbage train
 
 `models/legacy_models/` 是选读的手写网络结构参考，不是日常创建模型的入口。所有用户
 配置参数见[配置参数参考](../../docs/config-reference.zh-CN.md)。
-
-## 自动生成的同级目录
-
-`src/garbage_classifier.egg-info/` 由可编辑安装自动生成，不是核心代码。它已被 Git
-忽略，可用 `make clean` 删除，安装工具需要时会重新生成。不要修改或学习其中内容。

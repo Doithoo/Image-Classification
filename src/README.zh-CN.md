@@ -26,7 +26,6 @@ data/ → models/ → training/ → checkpoint
 | `inference/` | 预测、解释和导出 | `predictor.py` |
 
 `cli.py` 是命令行表现层；`legacy_models/` 是手写结构参考，属于选读内容。
-自动生成的 `*.egg-info/` 和 `__pycache__/` 可以忽略。
 
 参数按照“默认值 < YAML < `--set` < 专用参数”的顺序覆盖。训练前可运行：
 
