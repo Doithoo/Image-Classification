@@ -58,6 +58,11 @@ garbage train --config configs/resnet50.yaml --set model.name swin_tiny_patch4_w
 | 想体验 Transformer | `swin_tiny_patch4_window7_224` | 与 CNN 完全不同的思路 |
 | 移动端部署 | `mobilenetv3_small_100` / `efficientnet_b0` | 参数少、快 |
 
+**参数量和 FLOPs 怎么看**：参数量大致影响模型文件和内存，FLOPs/MACs 反映一次
+前向计算量。它们不是准确率保证；小模型可能更适合你的设备和延迟目标。第一次训练
+建议按 `mobilenetv3_small_100 → resnet18 → resnet50` 的顺序体验，再尝试
+`swin_tiny_patch4_window7_224` 这样的 Transformer。
+
 ## 4. 训练时模型参数怎么配置（ModelConfig）
 
 `config.py` 里的 `ModelConfig` 三个字段：

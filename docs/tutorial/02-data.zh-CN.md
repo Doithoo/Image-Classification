@@ -40,6 +40,15 @@ garbage prepare-data --set data.data_dir data/raw
 garbage train --config configs/resnet50.yaml
 ```
 
+训练前先看一眼真实数据，避免把目录或标签问题带进训练：
+
+```bash
+python scripts/preview_dataset.py --data-dir data/raw
+```
+
+打开 `artifacts/dataset-preview.png`，确认每一行的类别和图片都符合预期；
+`artifacts/class_counts.csv` 可直接用于比较类别数量。
+
 ### 步骤二内部发生了什么（`prepare-data` 的工作）
 
 `garbage_classifier/data/manifest.py` 的 `build_manifest` 依次做四件事：

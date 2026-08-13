@@ -16,6 +16,9 @@
 
 **Not required**: reading papers, deriving math, building CNNs by hand.
 
+If `logits`, loss, or gradients are new to you, start with the
+[minimum deep-learning concepts](tutorial/00-basics.zh-CN.md) before Stage 0.
+
 ---
 
 ## Stage 0: Environment (≈15 min)
@@ -32,6 +35,14 @@ garbage prepare-data --set data.data_dir data/raw  # builds manifests
 garbage train --config configs/resnet50.yaml --dry-run  # 1-batch sanity check
 ```
 
+For your first real run, use the deliberately simple configuration before
+turning on advanced techniques:
+
+```bash
+garbage train --config configs/learning_minimal.yaml \
+  --set train.epochs 2 --set run_name first-minimal-run
+```
+
 **Observe**: `data/manifests/` now has `train.csv / valid.csv / test.csv` and
 `summary.txt`; the dry-run prints `dry-run OK: input=(32,3,224,224) output=(32,6) ...`
 meaning data loads, the model builds, and forward+backward work.
@@ -46,6 +57,15 @@ meaning data loads, the model builds, and forward+backward work.
 
 **Read**: [`docs/how-it-works.md`](how-it-works.md) §1–2; the header comment of
 `src/garbage_classifier/data/manifest.py`; `data/manifests/summary.txt`.
+
+**Try**:
+
+```bash
+python scripts/preview_dataset.py --data-dir data/raw
+```
+
+Open `artifacts/dataset-preview.png` and confirm that each row contains the
+expected class.
 
 **Key ideas**:
 1. **Class imbalance**: inspect the audited counts in
@@ -276,7 +296,8 @@ stage 5-6 → evaluation/metrics.py + inference/{predictor,gradcam}.py
   ↓
 stage 7 → docs/experiments.md + training/checkpoint.py
   ↓
-capstone → combine the `garbage` commands freely
+capstone → combine the `garbage` commands freely and complete the
+[inference and deployment tutorial](tutorial/05-inference-deployment.zh-CN.md)
 ```
 
 **Remember**: read the header comment of any module first (every learning module

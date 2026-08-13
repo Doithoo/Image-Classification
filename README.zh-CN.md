@@ -215,6 +215,8 @@ Image-Classification/
 | [`docs/learning-path.md`](docs/learning-path.md) | EN | 初学者 7 阶段课程 |
 | [`docs/learning-path.zh-CN.md`](docs/learning-path.zh-CN.md) | 中文 | **初学者 0→1 学习路线（从这里开始）** |
 | [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | **实操教程：设备/数据/模型/训练策略** |
+| [`docs/tutorial/00-basics.zh-CN.md`](docs/tutorial/00-basics.zh-CN.md) | 中文 | 深度学习最小概念 |
+| [`docs/tutorial/05-inference-deployment.zh-CN.md`](docs/tutorial/05-inference-deployment.zh-CN.md) | 中文 | 推理、ONNX 与 Gradio 部署路径 |
 | [`docs/how-it-works.zh-CN.md`](docs/how-it-works.zh-CN.md) | 中文 | 数据流 + 每项技术为什么存在 |
 | [`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md) | 中文 | 可复现实验日志 + 教训 |
 

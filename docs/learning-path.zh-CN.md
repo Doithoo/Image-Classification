@@ -16,6 +16,8 @@
 
 **本路线不要求**：读过论文、懂数学推导、会写 CNN。
 
+如果你还不熟悉 logits、loss、梯度这些词，先读[深度学习最小概念](tutorial/00-basics.zh-CN.md)。
+
 ---
 
 ## 阶段 0：环境准备（约 15 分钟）
@@ -30,6 +32,13 @@ uv pip install -e ".[dev]"            # 安装依赖
 python scripts/download_data.py       # 下载数据集（自动校验 SHA-256）
 garbage prepare-data --set data.data_dir data/raw   # 生成清单
 garbage train --config configs/resnet50.yaml --dry-run  # 1 个 batch 冒烟
+```
+
+第一次完整训练建议先用简化配置，先观察训练循环，再逐项打开高级策略：
+
+```bash
+garbage train --config configs/learning_minimal.yaml \
+  --set train.epochs 2 --set run_name first-minimal-run
 ```
 
 **要观察的**：
@@ -52,7 +61,13 @@ garbage train --config configs/resnet50.yaml --dry-run  # 1 个 batch 冒烟
 - `src/garbage_classifier/data/manifest.py` 顶部注释
 - 打开 `data/manifests/summary.txt` 看各类数量
 
-**动手**：`ls data/raw/` 查看每个类别文件夹。
+**动手**：`ls data/raw/` 查看每个类别文件夹，并生成预览图：
+
+```bash
+python scripts/preview_dataset.py --data-dir data/raw
+```
+
+先打开 `artifacts/dataset-preview.png`，确认图片内容和类别文件夹相符。
 
 **核心知识点（务必理解）**：
 1. **类别不平衡**：以质量检查后的 `summary.txt` 实际数量为准。一个永远猜最多类别的
@@ -301,7 +316,7 @@ python scripts/plot_metrics.py artifacts/myexp-lr1e4/metrics.csv
   ↓
 阶段 7 → docs/experiments.zh-CN.md（实验方法与记录模板）＋ training/checkpoint.py
   ↓
-毕业项目 → 用 garbage 命令自由组合
+毕业项目 → 用 garbage 命令自由组合，并完成[推理与部署教程](tutorial/05-inference-deployment.zh-CN.md)
 ```
 
 **记住**：读代码时，先读文件顶部的注释（每个学习模块都写了"为什么"）；

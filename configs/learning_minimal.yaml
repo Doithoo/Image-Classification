@@ -1,0 +1,27 @@
+# First training run for beginners: keep one idea visible at a time.
+# Usage: garbage train --config configs/learning_minimal.yaml
+model:
+  name: resnet18
+  pretrained: false
+train:
+  epochs: 20
+  batch_size: 32
+  lr: 0.001
+  optimizer: adamw
+  scheduler: cosine
+  warmup_epochs: 0
+  label_smoothing: 0.0
+  mixup_alpha: 0.0
+  cutmix_alpha: 0.0
+  amp: false
+  ema: false
+  class_weight: none
+  sampler: none
+  early_stop_patience: 5
+  best_metric: macro_f1
+  seed: 42
+data:
+  image_size: 224
+  aug: basic
+  num_workers: 0
+device: auto
