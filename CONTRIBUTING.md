@@ -34,3 +34,5 @@ trailing period.
 
 Open a bug report for broken behavior, a learning issue for unclear educational
 material, or a pull request using the supplied templates.
+
+For historical context, see the [archived baseline and refactoring notes](docs/archive/baseline.md).

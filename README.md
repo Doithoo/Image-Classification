@@ -231,7 +231,6 @@ The historical numbers must be rerun on the audited data; see
 | [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | hands-on tutorials: devices, data, models, training strategy |
 | [`docs/how-it-works.md`](docs/how-it-works.md) | EN | data flow + why every technique exists ([中文](docs/how-it-works.zh-CN.md)) |
 | [`docs/experiments.md`](docs/experiments.md) | EN | reproducible experiment log + lessons ([中文](docs/experiments.zh-CN.md)) |
-| [`docs/baseline.md`](docs/baseline.md) | 中文 | the frozen pre-refactor state |
 
 ## License
 

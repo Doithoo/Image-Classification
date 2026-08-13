@@ -217,7 +217,6 @@ Image-Classification/
 | [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | **实操教程：设备/数据/模型/训练策略** |
 | [`docs/how-it-works.zh-CN.md`](docs/how-it-works.zh-CN.md) | 中文 | 数据流 + 每项技术为什么存在 |
 | [`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md) | 中文 | 可复现实验日志 + 教训 |
-| [`docs/baseline.md`](docs/baseline.md) | 中文 | 重构前冻结状态 |
 
 ## 许可证
 
