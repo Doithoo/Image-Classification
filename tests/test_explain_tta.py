@@ -2,6 +2,7 @@
 
 import torch
 
+from garbage_classifier.inference import Predictor
 from garbage_classifier.inference.gradcam import GradCAM, _find_last_conv
 
 
@@ -42,20 +43,21 @@ def test_gradcam_specific_class():
     assert heatmap.shape == (16, 16)
 
 
-def test_tta_averages_probabilities(tmp_path):
-    # exercise the TTA averaging logic with a stand-in object (no checkpoint needed)
-    import types
+def test_predict_probs_tta_averages_horizontal_flip_probabilities():
+    class DirectionSensitiveModel(torch.nn.Module):
+        def forward(self, images):
+            left = images[..., 0].mean(dim=(1, 2))
+            right = images[..., -1].mean(dim=(1, 2))
+            return torch.stack((left, right), dim=1)
 
-    fake = types.SimpleNamespace()
-    fake.model = torch.nn.Sequential(
-        torch.nn.Linear(16, 3),
-    ).eval()
-    fake.class_names = ["a", "b", "c"]
+    predictor = Predictor.__new__(Predictor)
+    predictor.model = DirectionSensitiveModel()
+    x = torch.tensor([[[[4.0, 0.0]]]])
 
-    x = torch.randn(4, 16)
     with torch.no_grad():
-        base = torch.softmax(fake.model(x), dim=1)
-        # manual TTA: average with flipped-view probabilities (flip is no-op here)
-        tta = (base + torch.softmax(fake.model(x), dim=1)) / 2
-    assert torch.allclose(base, tta)  # flip of a vector input == itself
-    assert torch.allclose(tta.sum(dim=1), torch.ones(4))
+        original = torch.softmax(predictor.model(x), dim=1)
+        flipped = torch.softmax(predictor.model(torch.flip(x, dims=[3])), dim=1)
+        actual = predictor.predict_probs(x, tta=True)
+
+    assert not torch.allclose(original, flipped)
+    assert torch.allclose(actual, (original + flipped) / 2)

@@ -97,6 +97,7 @@ def _tiny_train(tmp_path):
 
     cfg = load_config(
         overrides={
+            "data.data_dir": str(tmp_path / "data"),
             "data.manifest_dir": str(tmp_path / "manifests"),
             "data.num_workers": 0,
             "data.pin_memory": False,

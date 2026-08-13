@@ -27,6 +27,7 @@ from PIL import Image
 
 from . import __version__
 from .config import ExperimentConfig, load_config
+from .data.manifest import ManifestError
 from .data.prepare import prepare_data
 from .evaluation.evaluate import evaluate_checkpoint
 from .training.train import train_from_config
@@ -56,6 +57,36 @@ def _parse_set(overrides: list[list[str]]) -> dict[str, Any]:
         except json.JSONDecodeError:
             out[key] = value
     return out
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be zero or greater")
+    return parsed
+
+
+def _unit_float(value: str) -> float:
+    parsed = float(value)
+    if not 0.0 <= parsed <= 1.0:
+        raise argparse.ArgumentTypeError("must be between 0 and 1")
+    return parsed
+
+
+def _add_debug_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="show tracebacks for command errors",
+    )
 
 
 def _resolve_cfg(args: argparse.Namespace) -> ExperimentConfig:
@@ -105,12 +136,23 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
 def cmd_predict(args: argparse.Namespace) -> int:
     from .inference import Predictor
 
-    predictor = Predictor(args.checkpoint, device=args.device, config_path=args.config)
     target = Path(args.image)
-    targets = [target] if target.is_file() else sorted(target.glob("*"))
+    supported_suffixes = (".jpg", ".jpeg", ".png")
+    if not target.exists():
+        raise FileNotFoundError(f"input path does not exist: {target}")
+    if target.is_file():
+        if target.suffix.lower() not in supported_suffixes:
+            raise ValueError(f"unsupported image file: {target}")
+        targets = [target]
+    elif target.is_dir():
+        targets = sorted(path for path in target.iterdir() if path.is_file() and path.suffix.lower() in supported_suffixes)
+        if not targets:
+            raise ValueError(f"no supported images found in directory: {target}")
+    else:
+        raise ValueError(f"input path is not a file or directory: {target}")
+
+    predictor = Predictor(args.checkpoint, device=args.device, config_path=args.config)
     for path in targets:
-        if path.suffix.lower() not in (".jpg", ".jpeg", ".png"):
-            continue
         top = predictor.predict_path(path, top_k=args.top_k, tta=args.tta)
         ranked = ", ".join(f"{name}={prob:.3f}" for name, prob in top)
         print(f"{path} -> {ranked}")
@@ -138,6 +180,10 @@ def cmd_explain(args: argparse.Namespace) -> int:
     from .inference.gradcam import GradCAM, overlay_heatmap
 
     predictor = Predictor(args.checkpoint, device=args.device, config_path=args.config)
+    if args.class_idx is not None and args.class_idx >= len(predictor.class_names):
+        raise ValueError(
+            f"class index {args.class_idx} is outside the valid range [0, {len(predictor.class_names) - 1}]"
+        )
     image = Image.open(args.image)
     img_tensor = predictor.transform(image.convert("RGB")).to(predictor.device)
 
@@ -189,21 +235,25 @@ def cmd_bench(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="garbage", description=__doc__)
     parser.add_argument("--version", action="version", version=f"garbage-classifier {__version__}")
+    _add_debug_arg(parser)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("prepare-data", help="generate manifests from class folders")
+    _add_debug_arg(p)
     p.add_argument("--data-dir", type=str, default=None, help="dir with one subfolder per class")
     p.add_argument("--strict", action="store_true", help="fail if duplicate images are found")
     _add_config_args(p)
     p.set_defaults(func=cmd_prepare_data)
 
     p = sub.add_parser("train", help="train a model")
+    _add_debug_arg(p)
     _add_config_args(p)
     p.add_argument("--resume", type=str, default=None, help="checkpoint path to resume from")
     p.add_argument("--dry-run", action="store_true", help="train on 1 batch only to verify the pipeline")
     p.set_defaults(func=cmd_train)
 
     p = sub.add_parser("evaluate", help="evaluate a checkpoint")
+    _add_debug_arg(p)
     _add_config_args(p)
     p.add_argument("--checkpoint", type=str, required=True, help="checkpoint .pt path")
     p.add_argument("--split", type=str, default="test", choices=["train", "valid", "test"])
@@ -213,15 +263,17 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_evaluate)
 
     p = sub.add_parser("predict", help="predict image(s) from a checkpoint")
+    _add_debug_arg(p)
     p.add_argument("--checkpoint", type=str, required=True)
     p.add_argument("--image", type=str, required=True, help="image path or directory")
-    p.add_argument("--top-k", type=int, default=3)
+    p.add_argument("--top-k", type=_positive_int, default=3)
     p.add_argument("--config", type=str, default=None)
     p.add_argument("--device", type=str, default="auto")
     p.add_argument("--tta", action="store_true", help="test-time augmentation (average over horizontal flip)")
     p.set_defaults(func=cmd_predict)
 
     p = sub.add_parser("export-onnx", help="export a checkpoint to ONNX")
+    _add_debug_arg(p)
     p.add_argument("--checkpoint", type=str, required=True)
     p.add_argument("--output", type=str, default="model.onnx", help="output .onnx path")
     p.add_argument("--image-size", type=int, default=None, help="input size (default: from checkpoint config)")
@@ -231,28 +283,37 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_export_onnx)
 
     p = sub.add_parser("explain", help="Grad-CAM heatmap for a single image")
+    _add_debug_arg(p)
     p.add_argument("--checkpoint", type=str, required=True)
     p.add_argument("--image", type=str, required=True, help="image path")
     p.add_argument("--output", type=str, default="gradcam.png")
-    p.add_argument("--class-idx", type=int, default=None, help="class of interest (default: top-1)")
-    p.add_argument("--alpha", type=float, default=0.5, help="heatmap blend strength")
+    p.add_argument("--class-idx", type=_nonnegative_int, default=None, help="class of interest (default: top-1)")
+    p.add_argument("--alpha", type=_unit_float, default=0.5, help="heatmap blend strength")
     p.add_argument("--config", type=str, default=None)
     p.add_argument("--device", type=str, default="auto")
     p.set_defaults(func=cmd_explain)
 
     p = sub.add_parser("bench", help="list registry models with params/FLOPs")
+    _add_debug_arg(p)
     p.add_argument("--input-size", type=int, default=224)
     p.add_argument("--legacy", action="store_true", help="include legacy models")
     p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("demo", help="launch the Gradio web demo")
+    _add_debug_arg(p)
     p.add_argument("--checkpoint", type=str, required=True)
     p.add_argument("--device", type=str, default="auto")
     p.add_argument("--share", action="store_true", help="create a public share link")
     p.set_defaults(func=cmd_demo)
 
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (FileNotFoundError, ManifestError, ValueError, KeyError) as exc:
+        if getattr(args, "debug", False):
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
