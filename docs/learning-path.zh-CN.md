@@ -55,7 +55,7 @@ garbage train --config configs/resnet50.yaml --dry-run  # 1 个 batch 冒烟
 **动手**：`ls data/raw/` 查看每个类别文件夹。
 
 **核心知识点（务必理解）**：
-1. **类别不平衡**：以审计后 `summary.txt` 的实际数量为准。一个永远猜最多类别的
+1. **类别不平衡**：以质量检查后的 `summary.txt` 实际数量为准。一个永远猜最多类别的
    模型也会有看似不低的 accuracy —— 所以后面我们用
    `balanced_accuracy` / `macro_f1`，而不是只看 accuracy。
 2. **训练/验证/测试三分**：验证集用于选模型，测试集只用于最终评估，**绝不碰**。
@@ -91,19 +91,17 @@ print(img.shape, label)   # torch.Size([3, 224, 224]) 0
 "
 ```
 
-下载脚本应用审计补丁后，strict 模式预期成功。若指向未修补的上游 v1 数据，重复或
-标注冲突诊断属于预期结果，应先按提示审计数据。
+下载脚本会先应用数据质量检查，strict 模式随后验证数据可以安全切分。
 
 **核心知识点**：
 1. **为什么是 CSV manifest 而不是直接遍历文件夹**：相对路径 + 固定切分 =
-   可移植 + 可复现。旧版项目用 Windows 反斜杠路径，换系统就崩 —— 这是重构的
-   第一个动机。
+   可移植 + 可复现，在不同操作系统和工作目录下都能运行。
 2. **为什么训练集和验证集用不同的变换**：训练要多样性（随机裁剪/翻转/增强），
    验证要稳定（固定居中裁剪）。`transforms.py` 里 `RandomResizedCrop` vs
    `CenterCrop` 就是这对关系的体现。
 3. **归一化**：`Normalize(mean, std)` 把像素从 [0,1] 变成近似标准正态 —— 帮助
-   模型收敛。mean/std 由 `03_compute_stats`（旧版脚本）或直接计算得到，训练/推理
-   必须用同一份（我们的 checkpoint 自带了它，见阶段 6）。
+   模型收敛。mean/std 从训练图片计算得到，训练/推理使用同一份参数（checkpoint
+   自带这些参数，见阶段 6）。
 
 **验证题**：为什么验证集 DataLoader 的 `shuffle=False`？（提示：评测结果要确定）
 
@@ -127,13 +125,13 @@ garbage train --config configs/resnet50.yaml --set train.epochs 1 --set device c
 **核心知识点**：
 1. **backbone（主干）**：ResNet50 等预训练网络负责提取特征，最后接一个新的
    分类头（把 1000 类 ImageNet 输出换成我们的 6 类）。`num_classes=6` 就是干这个。
-2. **预训练 vs 从零**：`pretrained: true` 用 ImageNet 上训好的权重初始化 —— 小
-   数据集上通常大幅优于从零（`docs/experiments.zh-CN.md` 实验 2 有实测：+27 个点）。
+2. **预训练 vs 从零**：`pretrained: true` 用 ImageNet 上训好的权重初始化。运行
+   实验 2，亲自测量迁移学习对这个数据集的帮助。
 3. **为什么用注册表**：`config.yaml` 里写 `model.name` 就能换模型，代码不用动。
-   这叫"配置驱动" —— 对比旧版（改代码切换模型）是本质区别。
+   这叫"配置驱动" —— 实验配置清晰，模型切换无需修改训练代码。
 
 **验证题**：`garbage bench` 里 mobilenetv3_small 的参数量约为 resnet50 的几分之几？
-猜一下两者精度差多少？（实测见实验 2：约差 12 个点）
+猜一下两者精度差多少，再用实验 2 验证。
 
 ---
 
@@ -180,9 +178,9 @@ python scripts/plot_metrics.py artifacts/learn-b/metrics.csv
 2. **MixUp**：把两张图按 λ 混合（标签也混合）—— 模型被迫学特征而非死记，
    典型的正则化。**注意**：MixUp 后训练 loss 会偏高，但验证集反而更好 ——
    别被训练 loss 骗了。
-3. **EMA**：维护一个"影子权重"（历史权重的指数平均），验证和保存用影子、
+3. **EMA**：维护一个"影子权重"（过去步骤权重的指数平均），验证和保存用影子、
    训练用快权重。影子更平滑、泛化更好。**但是**：decay 的时间常数是
-   1/(1−decay) 步，短训练里 `0.999` 根本追不上 —— 这就是实验 4 的教训。
+   1/(1−decay) 步，因此高 decay 需要较长训练才能让影子权重跟上。
 4. **checkpoint 自包含**：best.pt 里存的不只是权重，还有配置、类别表、优化器
    状态 —— 所以断点续训（`--resume`）和复现实验才可能。
 
@@ -197,7 +195,7 @@ train_loss 和 val_loss 对比说明。
 
 **读什么**：
 - `src/garbage_classifier/evaluation/metrics.py`（每个指标怎么算）
-- `docs/experiments.zh-CN.md` 实验 1（完整报告示例）
+- `docs/experiments.zh-CN.md` 实验 1（完整工作流）
 
 **动手**：
 ```bash
@@ -212,7 +210,7 @@ garbage evaluate --checkpoint artifacts/learn-b/best.pt --plot
    - precision = 预测为 trash 里真的有多少是 trash（"猜的准不准"）
    - recall = 真的 trash 里被找出来多少（"漏没漏"）
    - F1 = 两者的调和平均
-   - 重平衡策略就是在 precision↔recall 之间做权衡（实验 3 的教训！）
+   - 重平衡策略通常在 precision 与 recall 之间取舍，两者都要测量
 4. **混淆矩阵**：行=真实、列=预测。对角线越亮越好；看"垃圾"常被错成哪类，
    就是错误分析的第一步。
 
@@ -239,7 +237,7 @@ garbage explain --checkpoint artifacts/learn-b/best.pt --image data/raw/paper/pa
 1. **checkpoint 自包含的威力**：`predict` 不需要你告诉它类别名、均值方差、模型名
    —— 全部从 best.pt 恢复。训练/推理配置永不漂移。
 2. **TTA（测试时增强）**：推理时把图水平翻转再推一次，两次 softmax 取平均。
-   不训练任何东西，白捡 1–2 个点（实验 5：0.906 → 0.922）。
+   实验 5 用来衡量额外一次推理是否值得。
 3. **Grad-CAM**：用最后一层卷积的特征图 × 类别得分的梯度，加权得到"模型看哪里"
    的热力图。模型分错时，看它看的是不是错误区域 —— 错误分析第一利器。
 
@@ -252,7 +250,7 @@ garbage explain --checkpoint artifacts/learn-b/best.pt --image data/raw/paper/pa
 **目标**：把"做实验"变成纪律，理解可复现实验平台的本质。
 
 **读什么**：
-- `docs/experiments.zh-CN.md` 全文（尤其是每节的"学习要点"）
+- `docs/experiments.zh-CN.md` 全文（重点看对比方法）
 - `src/garbage_classifier/training/checkpoint.py`（checkpoint 里存了什么）
 
 **动手（完成一个自己的小实验矩阵）**：
@@ -268,10 +266,10 @@ python scripts/plot_metrics.py artifacts/myexp-lr1e4/metrics.csv
 
 **核心知识点（学习项目的"职业习惯"）**：
 1. **每次实验 = 一个 artifact 目录**：`config.yaml`（完整配置）+ `metrics.csv`
-   （逐 epoch 指标）+ `best.pt`（可复现权重）。**config.yaml 是唯一真相** ——
-   本项目早期就把"预训练微调"误记成"从零训练"，全靠 config.yaml 纠正。
+   （逐 epoch 指标）+ `best.pt`（可复现权重）。**config.yaml 是唯一真相**，
+   它比依赖记忆描述实验更可靠。
 2. **一次只改一个变量**：对比实验必须保证"只有自变量不同"，否则结论无效。
-3. **先记录，再下结论**：直觉（"重平衡应该更好"）经常被数据打脸（实验 3）。
+3. **先记录，再下结论**：由结果而不是直觉判断技术是否改善目标指标。
 
 **验证题**：写完 `docs/experiments.zh-CN.md` 风格的实验记录（可以就用 myexp 两个 run），
 包含：命令、表格、一个"学习要点"。
@@ -301,7 +299,7 @@ python scripts/plot_metrics.py artifacts/myexp-lr1e4/metrics.csv
   ↓
 阶段 5-6 → evaluation/metrics.py ＋ inference/predictor.py ＋ inference/gradcam.py
   ↓
-阶段 7 → docs/experiments.zh-CN.md（前人的实验与教训）＋ training/checkpoint.py
+阶段 7 → docs/experiments.zh-CN.md（实验方法与记录模板）＋ training/checkpoint.py
   ↓
 毕业项目 → 用 garbage 命令自由组合
 ```

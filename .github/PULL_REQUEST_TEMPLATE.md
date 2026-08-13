@@ -8,7 +8,7 @@ List the exact commands run and their results.
 
 ## Data and evaluation
 
-- Dataset source/checksum and patch version (or `N/A`):
+- Dataset source/checksum and quality-patch version (or `N/A`):
 - Manifest checksum (or `N/A`):
 - Did this change inspect or tune against the test split? `No` / explain:
 

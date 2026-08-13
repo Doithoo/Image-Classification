@@ -24,7 +24,7 @@ pytest
 ```
 
 For data or experiment changes, record the source archive checksum, dataset
-patch version, manifest checksum, resolved config, dependency lock and exact
+quality-patch version, manifest checksum, resolved config, dependency lock and exact
 command. Select models on validation data; do not use the test split for tuning.
 
 Use English ASCII [Conventional Commits](https://www.conventionalcommits.org/),

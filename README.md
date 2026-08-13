@@ -49,8 +49,8 @@ and lightweight inference.
 - **Professional training loop** — AMP, resume, early stopping, warmup + cosine
   LR, label smoothing, MixUp/CutMix, EMA, gradient clipping, full RNG seeding,
   per-epoch CSV metrics.
-- **Model zoo** — 17 maintained timm/torchvision backbones + 38 `legacy_*` keys
-  behind a single registry.
+- **Model zoo** — maintained timm/torchvision backbones and educational
+  hand-written implementations behind a single registry.
 - **Interpretability & deployment** — Grad-CAM heatmaps (`garbage explain`),
   TTA, ONNX export, Gradio demo.
 - **Quality gates** — ruff lint/format, behavioral pytest coverage, GitHub Actions CI
@@ -128,7 +128,7 @@ with expected observations.
 
 Companion docs: [`docs/how-it-works.md`](docs/how-it-works.md) explains the data
 flow and every technique in the training loop; [`docs/experiments.md`](docs/experiments.md)
-is a fully reproducible experiment log (including the "lessons learned" sections).
+contains runnable experiments and the lessons they illustrate.
 
 ## Configuration
 
@@ -145,7 +145,7 @@ garbage train --config configs/resnet50.yaml \
 
 The resolved config is saved in `artifacts/<run>/config.yaml`. A checkpoint is
 enough for standalone inference. Reproducing a training result additionally
-requires the exact manifests, source data version (including audit patch), and
+  requires the exact manifests, source data version (including quality patch), and
 dependency lock used by the run; an artifact directory alone is not sufficient.
 
 ## Model zoo (timm backbones)
@@ -167,7 +167,7 @@ table with FLOPs; `available_models()` lists all registry keys.
 ## Dataset
 
 - The upstream v1 archive contains 2,527 images. The downloader verifies that
-  archive, then applies audit patch `v1.0-audit.1`, removing three reviewed bad
+  archive, then applies quality patch `v1.0-audit.1`, removing three reviewed bad
   labels/duplicates before the 80/10/10 stratified split.
 - **Imbalance**: `trash` is only 5.4% of training data while `paper` is 23.5% —
   accuracy alone is misleading, so evaluation always reports balanced accuracy,
@@ -185,8 +185,8 @@ Image-Classification/
 │   ├── cli.py            CLI presentation layer (arg parsing + dispatch)
 │   ├── config.py         typed config (YAML + dotted overrides)
 │   ├── data/             manifests, dataset, transforms, prepare-data logic
-│   ├── models/           registry + timm zoo (+ legacy shim)
-│   │   └── legacy_models/   vendored hand-written models (lazy-loaded)
+│   ├── models/           registry + timm zoo + educational implementations
+│   │   └── legacy_models/   hand-written reference models (lazy-loaded)
 │   ├── training/         Trainer, checkpoints, train command logic
 │   ├── evaluation/       metrics, reports, evaluate command logic
 │   ├── inference/        Predictor, Grad-CAM, ONNX export, demo
@@ -210,14 +210,14 @@ provided (best checkpoint is selected by `balanced_accuracy` in these configs):
 | `configs/imbalance_weighted_loss.yaml` | inverse-frequency class weights in the loss |
 | `configs/imbalance_weighted_sampler.yaml` | `WeightedRandomSampler` (oversample rare classes) |
 
-The historical numbers must be rerun on the audited data; see
-[`docs/experiments.md`](docs/experiments.md#experiment-3-class-imbalance-strategies-mobilenetv3-small-pretrained-15-epochs-no-mixup).
+The example results and complete commands are documented in
+[`docs/experiments.md`](docs/experiments.md#experiment-3-class-imbalance-strategies).
 
 ## Reproducibility guarantees
 
 - [x] fresh env: `pip install -e .` + one CLI command → CPU smoke run
 - [x] checkpoints carry everything needed for standalone inference
-- [ ] full experiment replay requires archived manifests, source-data/patch
+- [ ] full experiment replay requires archived manifests, source-data quality-patch
   version, config, weights and a dependency lock
 - [x] inference never requires manually repeating classes / normalization / model name
 - [x] CI green on lint + unit tests + minimal training flow

@@ -1,20 +1,33 @@
-# Experiments (Historical Log; Rerun Required)
+# Reproducible Experiments
 
-> **Deprecated baseline:** every number below was produced from the unpatched
-> upstream v1 dataset. That data contained reviewed annotation errors and a
-> cross-class duplicate, and the historical workflow repeatedly inspected the
-> test split while comparing techniques. These results are retained only as
-> provenance; they are not a valid current benchmark and must not be compared
-> with runs on audit patch `v1.0-audit.1`.
->
-> To publish replacements, archive the dependency lock, source archive checksum,
-> patch version, generated manifests, resolved config and checkpoint. Select
-> models on validation, then evaluate the chosen model on test once. No new
-> numbers are claimed here until that rerun is complete.
->
+This guide turns the project into a small image-classification laboratory. Each
+experiment changes one factor at a time, selects checkpoints on validation data,
+and evaluates the selected model on the test split only once.
+
 > **中文版：[experiments.zh-CN.md](experiments.zh-CN.md)**
 
-## Experiment 1: ResNet50 pretrained fine-tune (15 epochs, MixUp)
+## Before you run
+
+Prepare the checked dataset and fixed manifests:
+
+```bash
+python scripts/download_data.py
+garbage prepare-data --set data.data_dir data/raw --strict
+```
+
+For every run, retain:
+
+- the resolved `config.yaml` and `metrics.csv`;
+- the source archive checksum and dataset quality-patch version;
+- the manifest checksum from `data/manifests/summary.txt`;
+- the dependency lock, random seed and selected checkpoint.
+
+Use validation metrics to compare settings. Run `garbage evaluate` on the test
+split only after choosing the final setting.
+
+## Experiment 1: Complete training workflow
+
+This run establishes a reference result and exercises the full pipeline.
 
 ```bash
 garbage train \
@@ -26,114 +39,106 @@ garbage train \
   --set train.mixup_alpha 0.2 \
   --set data.num_workers 0 \
   --set run_name exp-resnet50-mixup
+
+garbage evaluate \
+  --checkpoint artifacts/exp-resnet50-mixup/best.pt \
+  --plot
 ```
 
-**Test-set results** (`garbage evaluate --checkpoint artifacts/exp-resnet50-mixup/best.pt --plot`):
+Record accuracy, balanced accuracy, macro F1, per-class recall and the main
+confusion pairs. On this imbalanced dataset, balanced accuracy and macro F1 are
+more informative than accuracy alone.
 
-| Class | Precision | Recall | F1 | support |
-|---|---:|---:|---:|---:|
-| cardboard | 0.951 | 0.951 | 0.951 | 41 |
-| glass | 0.904 | 0.922 | 0.913 | 51 |
-| metal | 0.857 | 0.878 | 0.867 | 41 |
-| paper | 0.950 | 0.950 | 0.950 | 60 |
-| plastic | 0.915 | 0.878 | 0.896 | 49 |
-| trash | 0.714 | 0.714 | 0.714 | 14 |
-| **accuracy** | | | **0.906** | 256 |
-| **balanced acc** | | | **0.882** | |
-| **macro F1** | | | **0.882** | |
+## Experiment 2: Pretrained vs from scratch
 
-With TTA (`--tta`) accuracy rises to 0.922 / balanced 0.905.
-
-## Experiment 2: MobileNetV3-Small from-scratch vs pretrained (15 epochs, MixUp)
-
-| Setup | valid bal | test acc | test balanced | params |
-|---|---:|---:|---:|---:|
-| from scratch (`pretrained: false`) | 0.492 | 0.551 | 0.479 | 1.5M |
-| ImageNet pretrained fine-tune | 0.697 | 0.781 | 0.750 | 1.5M |
-
-**Lesson**: pretraining is a huge win on small models (+27 balanced-acc points) —
-a small model has limited capacity and learns poorly from scratch. But in
-experiment 1 the large resnet50 trained from scratch with strong augmentation
-matched fine-tuning — see experiment 4's lesson about domain shift. **Conclusion:
-try pretrained fine-tuning first, then compare against from-scratch with strong
-augmentation; let the experiments decide.**
-
-## Experiment 3: class-imbalance strategies (MobileNetV3-Small pretrained, 15 epochs, no MixUp)
-
-The three configs differ only in the rebalancing strategy
-(`configs/imbalance_*.yaml`); everything else is identical. The best checkpoint
-is chosen by validation balanced accuracy.
-
-| Strategy | valid bal | test acc | test balanced | trash P | trash R | trash F1 |
-|---|---:|---:|---:|---:|---:|---:|
-| none (baseline) | 0.818 | **0.832** | **0.815** | 0.833 | 0.714 | **0.769** |
-| inverse loss | 0.836 | 0.812 | 0.790 | 0.600 | 0.643 | 0.621 |
-| weighted sampler | **0.837** | 0.816 | 0.812 | 0.647 | **0.786** | 0.710 |
-
-**Historical observations (not current conclusions)**:
-1. Rebalancing wins on the **validation** set but the baseline wins on the
-   **test** set — model selection on validation does not guarantee transfer to
-   the test set, and the smaller the sample the larger the variance.
-2. Inverse loss pushes trash precision down to 0.60 and its F1 drops from 0.769
-   to 0.621 — rebalancing is a precision↔recall trade-off, not free lunch.
-3. The weighted sampler does raise trash recall (0.714 → 0.786) at a small cost
-   to overall accuracy.
-
-## Experiment 4: EMA on/off (MobileNetV3-Small pretrained, 15 epochs, MixUp)
-
-| Config | valid bal | test acc | test balanced | trash F1 |
-|---|---:|---:|---:|---:|
-| no EMA | 0.697 | **0.781** | **0.750** | **0.696** |
-| EMA decay=0.99 | 0.695 | 0.777 | 0.731 | 0.571 |
-| EMA decay=0.999 | 0.397 | 0.465 | 0.417 | 0.333 |
-
-**Lessons (three real bugs we hit, all genuine)**:
-1. **EMA shadow weights MUST include BN running_mean/var.** The initial
-   implementation averaged weights only and kept the fast model's BN stats —
-   validation predictions collapsed to "always guess one class" (balanced acc
-   frozen at 1/6). When weights change fast (fine-tuning), the BN mismatch
-   saturates activations. Fixed by averaging the running stats too (this is what
-   timm's `ModelEmaV2` does).
-2. **The decay time constant is 1/(1−decay) steps**: 0.999 → 1000 steps,
-   0.99 → 100 steps. A 15-epoch run has only ~945 steps, so the 0.999 shadow
-   barely follows the training and scores far below the fast model.
-3. **EMA is designed for long training**: it smooths late-training weight
-   jitter. On short runs it at best ties, at worst hurts; to see its benefit you
-   need tens-to-hundreds of epochs (or a lower decay).
-
-## Experiment 5: TTA (test-time augmentation)
-
-On `exp-resnet50-mixup`, test set:
-
-| Method | test acc | test balanced |
-|---|---:|---:|
-| plain inference | 0.906 | 0.882 |
-| TTA (horizontal-flip averaging) | **0.922** | **0.905** |
-
-TTA costs one extra inference pass and buys 1.6 accuracy points — averaging the
-probabilities over augmented views lowers the variance of a single decision.
-`evaluate --tta` / `predict --tta` are always available.
-
-## Tool examples
+Run the same MobileNetV3 configuration twice and change only pretraining:
 
 ```bash
-# Grad-CAM: see "where the model looked" (first step of error analysis)
-garbage explain --checkpoint artifacts/exp-resnet50-mixup/best.pt \
-  --image data/raw/paper/paper1.jpg --output gradcam.png
+garbage train --config configs/imbalance_none.yaml \
+  --set model.name mobilenetv3_small_100 --set model.pretrained true \
+  --set train.epochs 15 --set train.mixup_alpha 0.2 \
+  --set data.num_workers 0 --set run_name exp-pretrained
 
-# 1-batch sanity check before a long run (data/model/device OK?)
-garbage train --config configs/resnet50.yaml --dry-run
-
-# params / FLOPs for all models
-garbage bench
-
-# plot loss curves
-python scripts/plot_metrics.py artifacts/<run>/metrics.csv
+garbage train --config configs/imbalance_none.yaml \
+  --set model.name mobilenetv3_small_100 --set model.pretrained false \
+  --set train.epochs 15 --set train.mixup_alpha 0.2 \
+  --set data.num_workers 0 --set run_name exp-scratch
 ```
 
-## Artifact convention
+Compare convergence speed and best validation balanced accuracy. Pretrained
+weights are usually a strong starting point for small datasets, while training
+from scratch is useful for understanding the value of transfer learning.
 
-Every run leaves in `artifacts/<run>/`: `config.yaml` (full config, the source
-of truth), `metrics.csv` (per-epoch metrics), `best.pt` / `last.pt`
-(self-contained checkpoints), plus `predictions.csv` / `errors.csv` /
-`confusion_matrix.png` after evaluation, and optionally `loss_curve.png`.
+## Experiment 3: Class-imbalance strategies
+
+The three supplied configs differ only in how they treat class imbalance:
+
+```bash
+garbage train --config configs/imbalance_none.yaml \
+  --set model.name mobilenetv3_small_100 --set run_name exp-imbalance-none
+garbage train --config configs/imbalance_weighted_loss.yaml \
+  --set model.name mobilenetv3_small_100 --set run_name exp-imbalance-loss
+garbage train --config configs/imbalance_weighted_sampler.yaml \
+  --set model.name mobilenetv3_small_100 --set run_name exp-imbalance-sampler
+```
+
+Compare validation balanced accuracy, macro F1, and `trash` precision/recall.
+Weighting and oversampling often trade precision for recall; neither strategy is
+automatically better for every deployment goal.
+
+## Experiment 4: MixUp and EMA
+
+Use one base configuration and vary one option at a time:
+
+```bash
+# Reference run
+garbage train --config configs/imbalance_none.yaml \
+  --set model.name mobilenetv3_small_100 --set train.mixup_alpha 0 \
+  --set train.ema false --set run_name exp-regularization-none
+
+# MixUp
+garbage train --config configs/imbalance_none.yaml \
+  --set model.name mobilenetv3_small_100 --set train.mixup_alpha 0.2 \
+  --set train.ema false --set run_name exp-regularization-mixup
+
+# EMA
+garbage train --config configs/imbalance_none.yaml \
+  --set model.name mobilenetv3_small_100 --set train.mixup_alpha 0 \
+  --set train.ema true --set train.ema_decay 0.99 \
+  --set run_name exp-regularization-ema
+```
+
+Plot the curves with `python scripts/plot_metrics.py <metrics.csv>`. MixUp often
+raises training loss while improving validation generalization. EMA needs enough
+optimizer steps to catch up with the training weights, so interpret short runs
+carefully.
+
+## Experiment 5: Test-time augmentation
+
+After selecting one checkpoint, compare plain inference and TTA:
+
+```bash
+garbage evaluate --checkpoint artifacts/<run>/best.pt
+garbage evaluate --checkpoint artifacts/<run>/best.pt --tta
+```
+
+TTA averages predictions from the original and horizontally flipped images. It
+costs an additional inference pass, so report both metric change and latency.
+
+## Result table
+
+Use this table for your own runs rather than comparing results from different
+manifests or environments:
+
+| Run | Changed factor | Best valid balanced acc | Test acc | Test balanced acc | Macro F1 | Notes |
+|---|---|---:|---:|---:|---:|---|
+| reference | none | | | | | |
+| experiment | | | | | | |
+
+Useful follow-up tools:
+
+```bash
+python scripts/plot_metrics.py artifacts/<run>/metrics.csv
+garbage explain --checkpoint artifacts/<run>/best.pt \
+  --image data/raw/paper/paper1.jpg --output gradcam.png
+```

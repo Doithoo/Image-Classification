@@ -24,8 +24,8 @@ artifacts/<run>/  (config.yaml + metrics.csv + best.pt + last.pt)
 
 ## 2. 为什么用 CSV manifest 而不是目录遍历
 
-- **可移植**：manifest 存的是相对路径（正斜杠），换机器、换目录都能用。
-  旧版项目用 `..\train\...` 的 Windows 路径，macOS/Linux 上直接崩 —— 这是重构的首要动机。
+- **可移植**：manifest 存的是相对路径（正斜杠），换机器、换目录都能用，
+  不依赖特定操作系统或运行目录。
 - **可复现**：manifest 由固定种子（666）分层切分生成，并记录 `source.yaml`
   （数据根目录 + 类别表 + 校验和）。同一份数据 + 同一份 manifest = 同一份实验。
 
@@ -58,7 +58,7 @@ MixUp 混合两张完整图片；CutMix 把一张图的矩形区域替换成另�
 见 `training/ema.py` 顶部的原理说明。验证和保存 best 用影子权重，训练继续用
 快权重 —— 影子权重更平滑、泛化更好。
 
-两个实战教训（细节见 `docs/experiments.zh-CN.md` 实验 4）：
+配置 EMA 时要注意两个细节：
 1. **BN 的 running_mean/var 也要纳入平均**：只平均权重会导致验证时影子权重配
    fast 模型的 BN 统计，微调阶段统计失配 → 激活饱和 → 预测坍缩成单一类别。
 2. **decay 的时间常数是 1/(1−decay) 步**：0.999 = 1000 步。15 epoch（~945 步）
@@ -80,7 +80,7 @@ MixUp 混合两张完整图片；CutMix 把一张图的矩形区域替换成另�
 
 **好处**：`garbage predict --checkpoint xxx.pt` 不需要你手动告诉它"类别是什么、
 均值方差是多少、模型叫什么" —— 全部从 checkpoint 恢复，杜绝训练/推理配置漂移。
-这能避免推理配置漂移。完整复现实验还需要完全一致的 manifest、源数据/补丁版本与
+这能避免推理配置漂移。完整复现实验还需要完全一致的 manifest、数据质量补丁版本与
 依赖锁文件。
 
 ## 5. 评测为什么报这么多指标
@@ -97,7 +97,7 @@ MixUp 混合两张完整图片；CutMix 把一张图的矩形区域替换成另�
   用途：错误分析 —— 模型分错时，看它看的是不是错误区域。原理见
   `inference/gradcam.py` 顶部注释。
 - **TTA**（`evaluate --tta` / `predict --tta`）：推理时把输入水平翻转再推一次，
-  两个 softmax 取平均。不训练任何东西，白捡 1-2 个点精度（见 experiments.zh-CN.md 实验 5）。
+  两个 softmax 取平均；实验 5 用来比较指标收益和额外推理成本。
 
 ## 6. 推荐的学习路线
 

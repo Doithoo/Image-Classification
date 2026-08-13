@@ -32,7 +32,7 @@ body:
     id: data_version
     attributes:
       label: Data version
-      description: Source checksum, audit patch, and manifest checksum if data is involved.
+      description: Source checksum, dataset quality-patch version, and manifest checksum if data is involved.
   - type: textarea
     id: logs
     attributes:

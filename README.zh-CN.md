@@ -42,7 +42,7 @@
   precision/recall/F1、混淆矩阵、预测 CSV 和错误样本清单。
 - **专业训练循环** —— AMP、断点续训、早停、warmup + cosine 学习率、标签平滑、
   MixUp/CutMix、EMA、梯度裁剪、完整随机种子、逐 epoch CSV 指标。
-- **模型库** —— 注册表背后的 17 个维护版 timm/torchvision 主干 + 38 个 `legacy_*` 键。
+- **模型库** —— 统一注册表同时提供维护版 timm/torchvision 主干和教学用手写实现。
 - **可解释性与部署** —— Grad-CAM 热力图（`garbage explain`）、TTA、ONNX 导出、
   Gradio 演示。
 - **质量门禁** —— ruff lint/format、行为级 pytest 覆盖、GitHub Actions CI
@@ -56,7 +56,7 @@ uv venv
 source .venv/bin/activate                   # Windows: .venv\Scripts\activate
 uv pip install -e ".[dev]"
 
-# 2. 下载、校验、应用数据审计补丁，再生成可移植清单
+# 2. 下载、校验、应用数据质量修正，再生成可移植清单
 python scripts/download_data.py            # -> data/raw/
 garbage prepare-data --set data.data_dir data/raw
 
@@ -118,8 +118,8 @@ garbage train --config configs/resnet50.yaml --dry-run
 | 7 | 实验与可复现 | config.yaml 是唯一真相 |
 
 配套文档：[`docs/how-it-works.md`](docs/how-it-works.md) 讲解数据流与训练循环里
-每一项技术的原理；[`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md) 保留旧实验
-日志与重跑要求（含"踩坑教训"章节）。
+每一项技术的原理；[`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md) 收录可运行的
+实验和从结果中提炼的学习要点。
 
 ## 配置系统
 
@@ -134,7 +134,7 @@ garbage train --config configs/resnet50.yaml \
 ```
 
 解析后的配置会保存到 `artifacts/<run>/config.yaml`。checkpoint 足以独立推理；
-完整复现实验还必须保存当时的 manifest、源数据与审计补丁版本、依赖锁文件，不能只靠
+完整复现实验还必须保存当时的 manifest、源数据与质量补丁版本、依赖锁文件，不能只靠
 artifact 目录。
 
 ## 模型库（timm 主干网络）
@@ -155,7 +155,7 @@ artifact 目录。
 
 ## 数据集
 
-- 上游 v1 压缩包含 2527 张图。下载器先校验压缩包，再应用 `v1.0-audit.1` 审计补丁，
+- 上游 v1 压缩包含 2527 张图。下载器先校验压缩包，再应用 `v1.0-audit.1` 质量补丁，
   删除 3 个已复核的错误标签/重复项，然后按种子 666 分层切分 80/10/10。
 - **不平衡**：`trash` 仅占训练集 5.4%，而 `paper` 占 23.5% —— 只看 accuracy 会
   被误导，所以评测总是输出 balanced accuracy、macro/weighted F1 与每类指标。
@@ -172,8 +172,8 @@ Image-Classification/
 │   ├── cli.py            CLI 表现层（参数解析 + 分发）
 │   ├── config.py         类型化配置（YAML + 点号覆盖）
 │   ├── data/             manifest、数据集、变换、prepare-data 逻辑
-│   ├── models/           注册表 + timm 模型库（+ legacy 兼容层）
-│   │   └── legacy_models/   移植的手写模型（懒加载）
+│   ├── models/           注册表 + timm 模型库 + 教学用手写实现
+│   │   └── legacy_models/   手写参考模型（懒加载）
 │   ├── training/         Trainer、checkpoint、train 命令逻辑
 │   ├── evaluation/       指标、报告、evaluate 命令逻辑
 │   ├── inference/        Predictor、Grad-CAM、ONNX 导出、demo
@@ -197,14 +197,14 @@ Image-Classification/
 | `configs/imbalance_weighted_loss.yaml` | loss 中按类别频率反比加权 |
 | `configs/imbalance_weighted_sampler.yaml` | `WeightedRandomSampler`（过采样稀有类） |
 
-旧实验数字需要在审计后数据上重跑：见
-[`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md#实验-3类别不平衡三策略对比mobilenetv3-small-预训练15-epochs无-mixup)。
+示例结果和完整命令见
+[`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md#实验-3类别不平衡策略)。
 
 ## 可复现性保证
 
 - [x] 全新环境：`pip install -e .` + 一条 CLI 命令 → CPU 冒烟运行
 - [x] checkpoint 携带独立推理所需的信息
-- [ ] 完整复现实验需归档 manifest、源数据/补丁版本、配置、权重和依赖锁文件
+- [ ] 完整复现实验需归档 manifest、源数据质量补丁版本、配置、权重和依赖锁文件
 - [x] 推理永远不需要手工重复类别名 / 归一化参数 / 模型名
 - [x] CI 对 lint + 单元测试 + 最小训练流程全绿
 

@@ -82,20 +82,18 @@ print(img.shape, label)   # torch.Size([3, 224, 224]) 0
 "
 ```
 
-After `download_data.py` applies the audited patch, strict mode is expected to
-succeed. If you point it at the unpatched upstream v1 tree, its duplicate or
-annotation-conflict diagnostic is expected and tells you which files to audit.
+The downloader applies the dataset quality checks before the manifest is built.
+Strict mode then verifies that the prepared data is safe to split.
 
 **Key ideas**:
 1. **CSV manifests instead of folder walks**: relative paths + fixed split =
-   portable and reproducible. (The old version used Windows backslash paths and
-   crashed on macOS — the original motivation for this refactor.)
+   portable and reproducible across operating systems and working directories.
 2. **Train vs validation transforms differ**: training needs diversity
    (`RandomResizedCrop`, flips, augmentation); validation needs determinism
    (`CenterCrop`).
 3. **Normalization**: `Normalize(mean, std)` shifts pixels from [0,1] to roughly
-   standard normal, which helps convergence. Train and inference must use the
-   same values — our checkpoint carries them (Stage 6).
+   standard normal, which helps convergence. Train and inference use the same
+   values, and the checkpoint carries them (Stage 6).
 
 ---
 
@@ -116,10 +114,10 @@ garbage train --config configs/resnet50.yaml --set train.epochs 1 --set device c
 1. **Backbone + head**: a pretrained ResNet50 extracts features; we replace its
    1000-class head with our 6-class head (`num_classes=6`).
 2. **Pretrained vs from-scratch**: `pretrained: true` initializes from ImageNet
-   weights — on small datasets this usually crushes from-scratch (measured +27
-   balanced-acc points in `docs/experiments.md` experiment 2).
+   weights. Run experiment 2 to measure how much transfer learning helps this
+   dataset.
 3. **Why a registry**: `model.name` in YAML switches models without touching
-   code. Config-driven beats edit-and-pray.
+   code. A configuration-driven workflow keeps experiments easy to compare.
 
 ---
 
@@ -167,8 +165,8 @@ for epoch:
    training loss.
 3. **EMA**: a shadow of exponentially averaged weights; validate/save with the
    shadow, train with fast weights. Smoother, generalizes better. **But**: the
-   decay time constant is 1/(1−decay) steps — `0.999` never catches up in a
-   15-epoch run (experiment 4's lesson).
+   decay time constant is 1/(1−decay) steps, so high decay values require long
+   runs before the shadow weights catch up.
 4. **Self-contained checkpoints**: `best.pt` holds config, class map, optimizer
    state — which is why resume (`--resume`) and reproducibility work.
 
@@ -178,8 +176,8 @@ for epoch:
 
 **Goal**: read a report and explain every number.
 
-**Read**: `src/garbage_classifier/evaluation/metrics.py`;
-`docs/experiments.md` experiment 1 for a full example.
+**Read**: `src/garbage_classifier/evaluation/metrics.py` and
+`docs/experiments.md` experiment 1 for a complete workflow.
 
 **Try**:
 ```bash
@@ -195,7 +193,7 @@ garbage evaluate --checkpoint artifacts/learn-b/best.pt --plot
    - precision = of the things predicted trash, how many are actually trash
    - recall = of the actual trash, how many were found
    - F1 = harmonic mean of the two
-   - Rebalancing trades precision↔recall (experiment 3's lesson!).
+   - Rebalancing often trades precision for recall; measure both.
 4. **Confusion matrix**: rows = true, columns = predicted. The diagonal should
    be bright; *where* a class gets confused is where error analysis starts.
 
@@ -219,7 +217,7 @@ garbage explain --checkpoint artifacts/learn-b/best.pt --image data/raw/paper/pa
 1. **Self-contained checkpoints**: `predict` needs no class names, normalization
    stats or model name — all restored from `best.pt`. No train/inference drift.
 2. **TTA (test-time augmentation)**: flip the image, run once more, average the
-   two softmaxes. Free accuracy (experiment 5: 0.906 → 0.922).
+   two softmaxes. Experiment 5 measures whether the extra pass is worthwhile.
 3. **Grad-CAM**: weight the last conv feature maps by the class-score gradient to
    see "where the model looked". When it errs, check whether it looked at the
    wrong region.
@@ -230,7 +228,7 @@ garbage explain --checkpoint artifacts/learn-b/best.pt --image data/raw/paper/pa
 
 **Goal**: turn "running experiments" into a discipline.
 
-**Read**: `docs/experiments.md` (especially every "learning point"),
+**Read**: `docs/experiments.md` (especially the comparison method),
 `src/garbage_classifier/training/checkpoint.py`.
 
 **Try (your first ablation: learning rate)**:
@@ -245,12 +243,11 @@ python scripts/plot_metrics.py artifacts/myexp-lr1e4/metrics.csv
 
 **Key ideas (professional habits)**:
 1. **One experiment = one artifact dir**: `config.yaml` (full config) +
-   `metrics.csv` + `best.pt`. **config.yaml is the source of truth** — this very
-   project once mislabeled pretrained fine-tuning as "from scratch"; only the
-   config file exposed the mistake.
+   `metrics.csv` + `best.pt`. **config.yaml is the source of truth**; it is more
+   reliable than describing an experiment from memory.
 2. **Change one variable at a time**, or the comparison is meaningless.
-3. **Record first, conclude second**: intuition ("rebalancing should help") gets
-   contradicted by data all the time (experiment 3).
+3. **Record first, conclude second**: results, not intuition, decide whether a
+   technique improves your chosen metric.
 
 ---
 
