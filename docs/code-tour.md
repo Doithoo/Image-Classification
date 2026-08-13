@@ -3,6 +3,10 @@
 This tour answers one question: **which code should a beginner read first?** The
 production package is complete by design, so do not start by reading every file.
 
+For directory roles and parameter precedence, see
+[Configuration and Parameter Flow](configuration-flow.md) and the READMEs inside
+`scripts/`, `src/` and `tests/`.
+
 > **中文版：[code-tour.zh-CN.md](code-tour.zh-CN.md)**
 
 ## Reading order

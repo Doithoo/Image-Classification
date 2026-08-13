@@ -84,3 +84,11 @@ def test_beginner_code_tour_and_examples_are_packaged_in_source_tree():
     assert (ROOT / "docs/code-tour.md").is_file()
     assert (ROOT / "docs/code-tour.zh-CN.md").is_file()
     assert len(list((ROOT / "examples").glob("[0-9][0-9]_*.py"))) == 5
+
+
+def test_code_directories_explain_their_audience_and_role():
+    for directory in ("scripts", "src", "tests"):
+        for name in ("README.md", "README.zh-CN.md"):
+            guide = ROOT / directory / name
+            assert guide.is_file(), f"missing {guide.relative_to(ROOT)}"
+            assert len(guide.read_text().splitlines()) >= 10

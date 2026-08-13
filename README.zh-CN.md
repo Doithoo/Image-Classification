@@ -133,6 +133,12 @@ garbage train --config configs/resnet50.yaml \
   --set train.epochs 80
 ```
 
+不启动训练，先查看合并后的最终参数：
+
+```bash
+garbage show-config --config configs/resnet50.yaml --set train.lr 1e-4
+```
+
 解析后的配置会保存到 `artifacts/<run>/config.yaml`。checkpoint 足以独立推理；
 完整复现实验还必须保存当时的 manifest、源数据与质量补丁版本、依赖锁文件，不能只靠
 artifact 目录。
@@ -166,8 +172,19 @@ artifact 目录。
 
 ## 项目结构
 
+根据目标选择入口：
+
+```text
+使用与学习：README → 学习路线 → examples → src
+贡献与维护：CONTRIBUTING → tests → pyproject.toml → Makefile → CI
+```
+
 ```
 Image-Classification/
+├── examples/             初学者优先阅读的小程序
+├── configs/              可直接运行的实验参数
+├── docs/                 学习路线、教程和代码导览
+├── scripts/              数据下载/检查/画图工具（目录内有 README）
 ├── src/garbage_classifier/
 │   ├── cli.py            CLI 表现层（参数解析 + 分发）
 │   ├── config.py         类型化配置（YAML + 点号覆盖）
@@ -178,13 +195,18 @@ Image-Classification/
 │   ├── evaluation/       指标、报告、evaluate 命令逻辑
 │   ├── inference/        Predictor、Grad-CAM、ONNX 导出、demo
 │   └── utils/            种子、设备、git revision、日志
-├── configs/              示例实验 YAML
-├── scripts/              download_data.py、plot_metrics.py
-├── tests/                单元 + CPU 端到端冒烟测试
-├── docs/                 学习路线、原理讲解、实验日志
+├── tests/                贡献者质量检查与进阶参考
 ├── data/                 （gitignore）下载的数据集 + 生成的清单
-└── artifacts/            （gitignore）每次运行：config.yaml、metrics.csv、best.pt、图
+├── artifacts/            （gitignore）运行配置、指标、checkpoint 和图表
+├── pyproject.toml        安装信息、依赖与工具配置
+├── uv.lock               开发环境和 CI 的精确依赖版本
+└── Makefile              测试、检查和清理的贡献者快捷命令
 ```
+
+安装时会使用 `pyproject.toml`；`uv.lock`、`Makefile` 和 `tests/` 主要服务贡献者与
+CI，初学阶段可以跳过。三个代码目录分别有中文说明：
+[`scripts/`](scripts/README.zh-CN.md)、[`src/`](src/README.zh-CN.md)、
+[`tests/`](tests/README.zh-CN.md)。
 
 ## 类别不平衡消融实验
 
@@ -215,6 +237,7 @@ Image-Classification/
 | [`docs/learning-path.md`](docs/learning-path.md) | EN | 初学者 7 阶段课程 |
 | [`docs/learning-path.zh-CN.md`](docs/learning-path.zh-CN.md) | 中文 | **初学者 0→1 学习路线（从这里开始）** |
 | [`docs/code-tour.zh-CN.md`](docs/code-tour.zh-CN.md) | 中文 | **代码阅读顺序与可跳过内容** |
+| [`docs/configuration-flow.zh-CN.md`](docs/configuration-flow.zh-CN.md) | 中文 | 配置优先级与参数传递路线 |
 | [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | **实操教程：设备/数据/模型/训练策略** |
 | [`docs/tutorial/00-basics.zh-CN.md`](docs/tutorial/00-basics.zh-CN.md) | 中文 | 深度学习最小概念 |
 | [`docs/tutorial/05-inference-deployment.zh-CN.md`](docs/tutorial/05-inference-deployment.zh-CN.md) | 中文 | 推理、ONNX 与 Gradio 部署路径 |

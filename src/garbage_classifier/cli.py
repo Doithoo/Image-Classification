@@ -5,6 +5,7 @@ All command logic lives in domain modules (``data.prepare``, ``training.train``,
 those functions.
 
 Commands (config overrides via dotted keys, e.g. ``--set train.lr 1e-4``):
+    show-config    Print the fully resolved configuration without running work
     prepare-data   Generate portable train/valid/test manifests from class folders
     train          Train a model (config-driven, resumable, AMP, early stopping)
     evaluate       Evaluate a checkpoint on a split (full metrics + optional plot)
@@ -26,7 +27,7 @@ from typing import Any
 from PIL import Image
 
 from . import __version__
-from .config import ExperimentConfig, load_config
+from .config import ExperimentConfig, load_config, to_dict
 from .data.manifest import ManifestError
 from .data.prepare import prepare_data
 from .evaluation.evaluate import evaluate_checkpoint
@@ -99,6 +100,14 @@ def _resolve_cfg(args: argparse.Namespace) -> ExperimentConfig:
 
 
 # ---- commands ---------------------------------------------------------------
+def cmd_show_config(args: argparse.Namespace) -> int:
+    """Print exactly the configuration that config-driven commands would use."""
+    import yaml
+
+    print(yaml.safe_dump(to_dict(_resolve_cfg(args)), sort_keys=False), end="")
+    return 0
+
+
 def cmd_prepare_data(args: argparse.Namespace) -> int:
     cfg = _resolve_cfg(args)
     prepare_data(
@@ -239,6 +248,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--version", action="version", version=f"garbage-classifier {__version__}")
     _add_debug_arg(parser)
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("show-config", help="print the fully resolved YAML configuration")
+    _add_debug_arg(p)
+    _add_config_args(p)
+    p.set_defaults(func=cmd_show_config)
 
     p = sub.add_parser("prepare-data", help="generate manifests from class folders")
     _add_debug_arg(p)

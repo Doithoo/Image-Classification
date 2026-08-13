@@ -143,9 +143,15 @@ garbage train --config configs/resnet50.yaml \
   --set train.epochs 80
 ```
 
+Preview the final merged values without starting a run:
+
+```bash
+garbage show-config --config configs/resnet50.yaml --set train.lr 1e-4
+```
+
 The resolved config is saved in `artifacts/<run>/config.yaml`. A checkpoint is
 enough for standalone inference. Reproducing a training result additionally
-  requires the exact manifests, source data version (including quality patch), and
+requires the exact manifests, source data version (including quality patch), and
 dependency lock used by the run; an artifact directory alone is not sufficient.
 
 ## Model zoo (timm backbones)
@@ -179,8 +185,19 @@ table with FLOPs; `available_models()` lists all registry keys.
 
 ## Project structure
 
+Choose the path that matches your goal:
+
+```text
+Use and learn:       README → learning path → examples → src
+Contribute/maintain: CONTRIBUTING → tests → pyproject.toml → Makefile → CI
+```
+
 ```
 Image-Classification/
+├── examples/             small programs to read first
+├── configs/              runnable experiment parameters
+├── docs/                 learning path, tutorials and code tour
+├── scripts/              data/download/visualization utilities (see README)
 ├── src/garbage_classifier/
 │   ├── cli.py            CLI presentation layer (arg parsing + dispatch)
 │   ├── config.py         typed config (YAML + dotted overrides)
@@ -191,13 +208,18 @@ Image-Classification/
 │   ├── evaluation/       metrics, reports, evaluate command logic
 │   ├── inference/        Predictor, Grad-CAM, ONNX export, demo
 │   └── utils/            seeding, device, git revision, logging
-├── configs/              example experiment YAMLs
-├── scripts/              download_data.py, plot_metrics.py
-├── tests/                unit + CPU end-to-end smoke tests
-├── docs/                 learning path, how-it-works, experiment log
+├── tests/                contributor quality checks and advanced examples
 ├── data/                 (gitignored) downloaded dataset + generated manifests
-└── artifacts/            (gitignored) per-run: config.yaml, metrics.csv, best.pt, plots
+├── artifacts/            (gitignored) run configs, metrics, checkpoints, plots
+├── pyproject.toml        package metadata, dependencies and tool settings
+├── uv.lock               exact development/CI dependency versions
+└── Makefile              contributor shortcuts for test/lint/clean
 ```
+
+`pyproject.toml` is used during installation. `uv.lock`, `Makefile` and `tests/`
+mainly serve contributors and CI; beginners can ignore them until they want to
+modify the project. See the READMEs in [`scripts/`](scripts/README.md),
+[`src/`](src/README.md) and [`tests/`](tests/README.md).
 
 ## Class-imbalance ablations
 
@@ -229,6 +251,7 @@ The example results and complete commands are documented in
 | [`docs/learning-path.md`](docs/learning-path.md) | EN | 7-stage curriculum for beginners |
 | [`docs/learning-path.zh-CN.md`](docs/learning-path.zh-CN.md) | 中文 | 初学者 0→1 学习路线 |
 | [`docs/code-tour.md`](docs/code-tour.md) | EN | beginner code-reading order ([中文](docs/code-tour.zh-CN.md)) |
+| [`docs/configuration-flow.md`](docs/configuration-flow.md) | EN | configuration precedence and parameter flow ([中文](docs/configuration-flow.zh-CN.md)) |
 | [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | hands-on tutorials: devices, data, models, training strategy |
 | [`configs/learning_minimal.yaml`](configs/learning_minimal.yaml) | EN | minimal first-training configuration |
 | [`scripts/preview_dataset.py`](scripts/preview_dataset.py) | EN | contact sheet and class-count preview |

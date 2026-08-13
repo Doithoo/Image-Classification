@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 import pytest
+import yaml
 
 from garbage_classifier import cli
 from garbage_classifier.data.manifest import ManifestError
@@ -112,3 +113,31 @@ def test_main_does_not_swallow_argparse_system_exit():
         cli.main(["not-a-command"])
 
     assert exc_info.value.code == 2
+
+
+def test_show_config_prints_the_fully_resolved_configuration(tmp_path, capsys):
+    config = tmp_path / "experiment.yaml"
+    config.write_text("train:\n  batch_size: 16\n  lr: 0.001\ndevice: auto\n")
+
+    result = cli.main(
+        [
+            "show-config",
+            "--config",
+            str(config),
+            "--set",
+            "train.lr",
+            "0.0002",
+            "--device",
+            "cpu",
+            "--output-dir",
+            "runs",
+        ]
+    )
+
+    resolved = yaml.safe_load(capsys.readouterr().out)
+    assert result == 0
+    assert resolved["train"]["batch_size"] == 16
+    assert resolved["train"]["lr"] == 0.0002
+    assert resolved["device"] == "cpu"
+    assert resolved["output_dir"] == "runs"
+    assert resolved["model"]["name"] == "resnet50"

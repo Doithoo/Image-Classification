@@ -22,6 +22,9 @@ ruff format --check .
 pytest
 ```
 
+目录职责和测试与源码的对应关系见 [`scripts/README.zh-CN.md`](scripts/README.zh-CN.md)、
+[`src/README.zh-CN.md`](src/README.zh-CN.md) 和 [`tests/README.zh-CN.md`](tests/README.zh-CN.md)。
+
 数据或实验修改需记录源压缩包校验和、数据质量补丁版本、manifest 校验和、完整配置、
 依赖锁与精确命令。只用验证集选择模型，不要用测试集调参。
 

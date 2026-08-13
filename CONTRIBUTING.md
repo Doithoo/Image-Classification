@@ -23,6 +23,10 @@ ruff format --check .
 pytest
 ```
 
+Repository roles and test-to-source mappings are documented in
+[`scripts/README.md`](scripts/README.md), [`src/README.md`](src/README.md) and
+[`tests/README.md`](tests/README.md).
+
 For data or experiment changes, record the source archive checksum, dataset
 quality-patch version, manifest checksum, resolved config, dependency lock and exact
 command. Select models on validation data; do not use the test split for tuning.
