@@ -44,6 +44,15 @@ def test_optional_dependencies_cover_release_and_development_tools():
     assert set(extras["all"]) >= set(extras["onnx"] + extras["demo"] + extras["plot"] + extras["lion"])
 
 
+def test_onnx_runtime_supports_every_declared_python_version():
+    extras = _pyproject()["project"]["optional-dependencies"]
+
+    for extra in ("onnx", "all"):
+        runtimes = [requirement for requirement in extras[extra] if requirement.startswith("onnxruntime")]
+        assert "onnxruntime>=1.16,<1.24; python_version < '3.11'" in runtimes
+        assert "onnxruntime>=1.16,<2; python_version >= '3.11'" in runtimes
+
+
 def test_ci_runs_locked_checks_and_clean_wheel_smoke():
     workflow = (ROOT / ".github/workflows/ci.yml").read_text()
 

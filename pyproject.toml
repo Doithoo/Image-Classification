@@ -41,13 +41,18 @@ dev = [
     "matplotlib>=3.6,<4",
     "lion-pytorch>=0.0.8,<1",
 ]
-onnx = ["onnx>=1.14,<2", "onnxruntime>=1.16,<2"]
+onnx = [
+    "onnx>=1.14,<2",
+    "onnxruntime>=1.16,<1.24; python_version < '3.11'",
+    "onnxruntime>=1.16,<2; python_version >= '3.11'",
+]
 demo = ["gradio>=4.0,<7"]
 plot = ["matplotlib>=3.6,<4"]
 lion = ["lion-pytorch>=0.0.8,<1"]
 all = [
     "onnx>=1.14,<2",
-    "onnxruntime>=1.16,<2",
+    "onnxruntime>=1.16,<1.24; python_version < '3.11'",
+    "onnxruntime>=1.16,<2; python_version >= '3.11'",
     "gradio>=4.0,<7",
     "matplotlib>=3.6,<4",
     "lion-pytorch>=0.0.8,<1",
