@@ -149,6 +149,9 @@ Preview the final merged values without starting a run:
 garbage show-config --config configs/resnet50.yaml --set train.lr 1e-4
 ```
 
+See the [Configuration Reference](docs/config-reference.md) for every field,
+default value, beginner recommendation, and interaction between related options.
+
 The resolved config is saved in `artifacts/<run>/config.yaml`. A checkpoint is
 enough for standalone inference. Reproducing a training result additionally
 requires the exact manifests, source data version (including quality patch), and
@@ -219,7 +222,8 @@ Image-Classification/
 `pyproject.toml` is used during installation. `uv.lock`, `Makefile` and `tests/`
 mainly serve contributors and CI; beginners can ignore them until they want to
 modify the project. See the READMEs in [`scripts/`](scripts/README.md),
-[`src/`](src/README.md) and [`tests/`](tests/README.md).
+[`src/`](src/README.md), [`src/garbage_classifier/`](src/garbage_classifier/README.md)
+and [`tests/`](tests/README.md).
 
 ## Class-imbalance ablations
 
@@ -252,6 +256,7 @@ The example results and complete commands are documented in
 | [`docs/learning-path.zh-CN.md`](docs/learning-path.zh-CN.md) | 中文 | 初学者 0→1 学习路线 |
 | [`docs/code-tour.md`](docs/code-tour.md) | EN | beginner code-reading order ([中文](docs/code-tour.zh-CN.md)) |
 | [`docs/configuration-flow.md`](docs/configuration-flow.md) | EN | configuration precedence and parameter flow ([中文](docs/configuration-flow.zh-CN.md)) |
+| [`docs/config-reference.md`](docs/config-reference.md) | EN | every configuration field, default and relationship ([中文](docs/config-reference.zh-CN.md)) |
 | [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | hands-on tutorials: devices, data, models, training strategy |
 | [`configs/learning_minimal.yaml`](configs/learning_minimal.yaml) | EN | minimal first-training configuration |
 | [`scripts/preview_dataset.py`](scripts/preview_dataset.py) | EN | contact sheet and class-count preview |

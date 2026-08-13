@@ -25,7 +25,8 @@ garbage show-config --config configs/resnet50.yaml \
 
 `show-config` performs the same parsing and validation as `train`; it only stops
 before loading data or building a model. Use it whenever you are unsure which
-value is active.
+value is active. The [Configuration Reference](config-reference.md) explains
+every accepted field, its default, and important relationships between fields.
 
 ## Where parameters go
 

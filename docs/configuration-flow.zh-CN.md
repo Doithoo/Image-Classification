@@ -24,7 +24,8 @@ garbage show-config --config configs/resnet50.yaml \
 ```
 
 `show-config` 与 `train` 使用完全相同的解析和校验流程，只是不加载数据、不创建模型。
-当你不确定哪个参数真正生效时，先运行它。
+当你不确定哪个参数真正生效时，先运行它。所有字段的默认值、含义和重要组合关系见
+[配置参数参考](config-reference.zh-CN.md)。
 
 ## 参数流向哪里
 

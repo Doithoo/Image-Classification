@@ -139,6 +139,9 @@ garbage train --config configs/resnet50.yaml \
 garbage show-config --config configs/resnet50.yaml --set train.lr 1e-4
 ```
 
+每个字段的默认值、初学者建议和相关参数之间的关系，见
+[配置参数参考](docs/config-reference.zh-CN.md)。
+
 解析后的配置会保存到 `artifacts/<run>/config.yaml`。checkpoint 足以独立推理；
 完整复现实验还必须保存当时的 manifest、源数据与质量补丁版本、依赖锁文件，不能只靠
 artifact 目录。
@@ -206,6 +209,7 @@ Image-Classification/
 安装时会使用 `pyproject.toml`；`uv.lock`、`Makefile` 和 `tests/` 主要服务贡献者与
 CI，初学阶段可以跳过。三个代码目录分别有中文说明：
 [`scripts/`](scripts/README.zh-CN.md)、[`src/`](src/README.zh-CN.md)、
+[`src/garbage_classifier/`](src/garbage_classifier/README.zh-CN.md) 和
 [`tests/`](tests/README.zh-CN.md)。
 
 ## 类别不平衡消融实验
@@ -238,6 +242,7 @@ CI，初学阶段可以跳过。三个代码目录分别有中文说明：
 | [`docs/learning-path.zh-CN.md`](docs/learning-path.zh-CN.md) | 中文 | **初学者 0→1 学习路线（从这里开始）** |
 | [`docs/code-tour.zh-CN.md`](docs/code-tour.zh-CN.md) | 中文 | **代码阅读顺序与可跳过内容** |
 | [`docs/configuration-flow.zh-CN.md`](docs/configuration-flow.zh-CN.md) | 中文 | 配置优先级与参数传递路线 |
+| [`docs/config-reference.zh-CN.md`](docs/config-reference.zh-CN.md) | 中文 | 所有配置参数、默认值与相互关系 |
 | [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | **实操教程：设备/数据/模型/训练策略** |
 | [`docs/tutorial/00-basics.zh-CN.md`](docs/tutorial/00-basics.zh-CN.md) | 中文 | 深度学习最小概念 |
 | [`docs/tutorial/05-inference-deployment.zh-CN.md`](docs/tutorial/05-inference-deployment.zh-CN.md) | 中文 | 推理、ONNX 与 Gradio 部署路径 |

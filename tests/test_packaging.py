@@ -1,4 +1,5 @@
 import re
+from dataclasses import fields
 from pathlib import Path
 
 try:
@@ -92,3 +93,30 @@ def test_code_directories_explain_their_audience_and_role():
             guide = ROOT / directory / name
             assert guide.is_file(), f"missing {guide.relative_to(ROOT)}"
             assert len(guide.read_text().splitlines()) >= 10
+
+
+def test_core_package_has_bilingual_local_navigation():
+    package = ROOT / "src/garbage_classifier"
+    for name in ("README.md", "README.zh-CN.md"):
+        guide = package / name
+        assert guide.is_file(), f"missing {guide.relative_to(ROOT)}"
+        assert "cli.py" in guide.read_text()
+        assert "training/" in guide.read_text()
+
+
+def test_configuration_reference_covers_every_user_field():
+    from garbage_classifier.config import DataConfig, ExperimentConfig, ModelConfig, TrainConfig
+
+    references = [
+        (ROOT / "docs/config-reference.md").read_text(),
+        (ROOT / "docs/config-reference.zh-CN.md").read_text(),
+    ]
+    keys = {
+        *(f"data.{field.name}" for field in fields(DataConfig)),
+        *(f"model.{field.name}" for field in fields(ModelConfig)),
+        *(f"train.{field.name}" for field in fields(TrainConfig)),
+        *(field.name for field in fields(ExperimentConfig) if field.name not in {"data", "model", "train"}),
+    }
+    for reference in references:
+        missing = sorted(key for key in keys if f"`{key}`" not in reference)
+        assert not missing, f"configuration reference is missing: {missing}"

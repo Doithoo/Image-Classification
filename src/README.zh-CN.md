@@ -3,7 +3,9 @@
 [English](README.md)
 
 `src/garbage_classifier/` 是安装后真正运行的应用。初学者不要按文件名字母顺序通读，
-先跟随[代码导览](../docs/code-tour.zh-CN.md)。
+先跟随[代码导览](../docs/code-tour.zh-CN.md)。它的
+[包内导航](garbage_classifier/README.zh-CN.md)进一步说明每个模块的输入、输出和完整
+训练调用链。
 
 ```text
 命令行参数和 YAML
@@ -32,3 +34,6 @@ data/ → models/ → training/ → checkpoint
 garbage show-config --config configs/resnet50.yaml \
   --set train.lr 0.0001 --device cpu
 ```
+
+需要查询单个字段的含义、默认值和参数关系时，阅读
+[配置参数参考](../docs/config-reference.zh-CN.md)。

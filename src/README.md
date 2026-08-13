@@ -3,7 +3,9 @@
 [简体中文](README.zh-CN.md)
 
 `src/garbage_classifier/` is the installed application. Beginners should follow
-the [Code Tour](../docs/code-tour.md) instead of reading it alphabetically.
+the [Code Tour](../docs/code-tour.md) instead of reading it alphabetically. Its
+[local package guide](garbage_classifier/README.md) maps inputs, outputs and the
+complete training call flow.
 
 ## Module map
 
@@ -56,6 +58,9 @@ Inspect the final values before running work:
 garbage show-config --config configs/resnet50.yaml \
   --set train.lr 0.0001 --device cpu
 ```
+
+Use the [Configuration Reference](../docs/config-reference.md) when you need the
+meaning, default and relationships of individual fields.
 
 Data preprocessing is stored in the same config and copied into checkpoints, so
 training, evaluation and inference do not maintain separate hidden parameters.
