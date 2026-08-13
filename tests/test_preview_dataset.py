@@ -1,6 +1,17 @@
+import importlib.util
+from pathlib import Path
+
 import pytest
 from PIL import Image
-from scripts.preview_dataset import collect_images, create_preview
+
+SCRIPT = Path(__file__).parents[1] / "scripts" / "preview_dataset.py"
+SPEC = importlib.util.spec_from_file_location("preview_dataset", SCRIPT)
+assert SPEC and SPEC.loader
+preview_dataset = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(preview_dataset)
+
+collect_images = preview_dataset.collect_images
+create_preview = preview_dataset.create_preview
 
 
 def test_collect_images_groups_supported_files(tmp_path):
