@@ -25,7 +25,7 @@ data/ → models/ → training/ → checkpoint
 | `evaluation/` | 指标和报告 | `metrics.py` |
 | `inference/` | 预测、解释和导出 | `predictor.py` |
 
-`cli.py` 是命令行表现层；`legacy_models/` 是手写结构参考，属于选读内容。
+`cli.py` 是命令行表现层，不包含模型训练逻辑。
 
 参数按照“默认值 < YAML < `--set` < 专用参数”的顺序覆盖。训练前可运行：
 

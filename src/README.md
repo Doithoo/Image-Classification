@@ -31,8 +31,6 @@ data/ → models/ → training/
 | `utils/` | Device, seed, logging helpers | Read when referenced |
 
 `cli.py` is a presentation layer. It does not contain model-training logic.
-`legacy_models/` contains hand-written architecture references and is optional
-reading.
 
 ## Parameter flow
 

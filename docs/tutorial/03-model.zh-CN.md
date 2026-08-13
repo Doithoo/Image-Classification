@@ -27,7 +27,7 @@ softmax → 概率
 ## 2. 本项目里模型怎么组织（注册表）
 
 第一次阅读只看 `models/registry.py` 的 `register`、`create_model`，再看 `zoo.py`
-如何注册 timm 模型。`legacy_models/` 是手写结构参考，等你想研究网络内部时再读。
+如何注册和选择 timm 模型。
 
 `garbage_classifier/models/registry.py` 维护一张"名字 → 工厂函数"的表：
 

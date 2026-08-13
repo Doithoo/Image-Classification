@@ -42,7 +42,7 @@
   precision/recall/F1、混淆矩阵、预测 CSV 和错误样本清单。
 - **专业训练循环** —— AMP、断点续训、早停、warmup + cosine 学习率、标签平滑、
   MixUp/CutMix、EMA、梯度裁剪、完整随机种子、逐 epoch CSV 指标。
-- **模型库** —— 统一注册表同时提供维护版 timm/torchvision 主干和教学用手写实现。
+- **模型库** —— 统一注册表提供维护版 timm/torchvision 主干网络。
 - **可解释性与部署** —— Grad-CAM 热力图（`garbage explain`）、TTA、ONNX 导出、
   Gradio 演示。
 - **质量门禁** —— ruff lint/format、行为级 pytest 覆盖、GitHub Actions CI
@@ -192,8 +192,7 @@ Image-Classification/
 │   ├── cli.py            CLI 表现层（参数解析 + 分发）
 │   ├── config.py         类型化配置（YAML + 点号覆盖）
 │   ├── data/             manifest、数据集、变换、prepare-data 逻辑
-│   ├── models/           注册表 + timm 模型库 + 教学用手写实现
-│   │   └── legacy_models/   手写参考模型（懒加载）
+│   ├── models/           注册表 + 维护中的 timm/torchvision 主干网络
 │   ├── training/         Trainer、checkpoint、train 命令逻辑
 │   ├── evaluation/       指标、报告、evaluate 命令逻辑
 │   ├── inference/        Predictor、Grad-CAM、ONNX 导出、demo

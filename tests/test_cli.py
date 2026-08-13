@@ -115,6 +115,16 @@ def test_main_does_not_swallow_argparse_system_exit():
     assert exc_info.value.code == 2
 
 
+def test_bench_help_lists_only_current_options(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["bench", "--help"])
+
+    assert exc_info.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "--debug" in help_text
+    assert "--input-size" in help_text
+
+
 def test_show_config_prints_the_fully_resolved_configuration(tmp_path, capsys):
     config = tmp_path / "experiment.yaml"
     config.write_text("train:\n  batch_size: 16\n  lr: 0.001\ndevice: auto\n")

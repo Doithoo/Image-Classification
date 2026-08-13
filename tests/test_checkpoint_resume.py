@@ -143,6 +143,6 @@ def test_restore_config_reports_missing_metadata_clearly():
         restore_config_from_checkpoint({})
 
 
-def test_deployable_state_supports_legacy_model_state_dict():
+def test_deployable_state_supports_minimal_model_state_dict():
     state = {"weight": torch.tensor([1.0])}
     assert deployable_model_state({"model_state_dict": state}) is state

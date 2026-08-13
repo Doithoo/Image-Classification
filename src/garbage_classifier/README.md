@@ -40,6 +40,5 @@ garbage train
 3. `evaluation/metrics.py`, `inference/predictor.py`.
 4. `mixup.py`, `ema.py`, `checkpoint.py`, manifest private helpers.
 
-`models/legacy_models/` contains optional hand-written architecture references.
-It is not the normal model creation path. Full configuration documentation is in
-the [Config Reference](../../docs/config-reference.md).
+Full configuration documentation is in the
+[Config Reference](../../docs/config-reference.md).

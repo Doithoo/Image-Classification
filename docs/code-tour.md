@@ -43,8 +43,6 @@ same loop, not a different training process.
 - `config.py` below the dataclasses: strict parsing and validation infrastructure.
 - `data/manifest.py` private helpers: duplicate-group optimization and metadata.
 - `training/checkpoint.py`, `ema.py`, `mixup.py`: read after one basic run.
-- `models/legacy_models/`: hand-written architecture references, not the normal
-  model-selection path.
 - `cli.py`: command-line presentation and error handling, not deep-learning logic.
 
 Return to these files when the corresponding question arises. Reading by data

@@ -107,7 +107,7 @@ def restore_config_from_checkpoint(payload: dict[str, Any]) -> ExperimentConfig:
 
 
 def deployable_model_state(payload: dict[str, Any]) -> dict[str, torch.Tensor]:
-    """Select inference weights, falling back to the legacy state-dict key."""
+    """Select inference weights, with a fallback for minimal checkpoints."""
     state = payload.get("deployable_model_state_dict")
     if state is None:
         state = payload.get("model_state_dict")

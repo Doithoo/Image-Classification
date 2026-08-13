@@ -5,7 +5,7 @@ Learning note — why timm?
     architectures WITH pretrained weights and a uniform API. Using it means we
     get battle-tested code and ImageNet-pretrained weights for free.
   - torchvision provides the classic reference implementations (ResNet etc.) —
-    we keep one (`tv_resnet50`) as a parity baseline against the timm version.
+    we keep one (`tv_resnet50`) for comparison with the timm version.
 
 Every entry here registers into the registry under a key; experiments select
 models by key via `model.name` in config.
@@ -84,8 +84,5 @@ for _name in [
 ]:
     register(_name)(_timm_factory(_name))
 
-# ---- torchvision baseline (strict parity with the historical README results) ----
+# ---- torchvision comparison model ----
 register("tv_resnet50")(_torchvision_factory("resnet50", head_attr="fc"))
-
-# legacy hand-written implementations are registered in garbage_classifier.models.legacy
-from . import legacy  # noqa: E402,F401

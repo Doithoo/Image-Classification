@@ -43,7 +43,7 @@ class DataConfig:
 class ModelConfig:
     """Model selection."""
 
-    name: str = "resnet50"  # key of the model registry (timm model or legacy_* name)
+    name: str = "resnet50"  # key of the maintained model registry
     num_classes: int | None = None  # derived from the manifest unless explicitly asserted
     pretrained: bool = True
 

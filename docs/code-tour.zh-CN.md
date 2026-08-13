@@ -39,7 +39,6 @@ optimizer.step()
 - `config.py` 中 dataclass 之后的代码：严格解析与校验基础设施。
 - `data/manifest.py` 的私有辅助函数：重复组分配和元数据处理。
 - `training/checkpoint.py`、`ema.py`、`mixup.py`：完成基础训练后再看。
-- `models/legacy_models/`：手写网络结构参考，不是日常选模型入口。
 - `cli.py`：命令行表现层和错误处理，不是深度学习核心。
 
 当你遇到对应问题时再回来读这些文件。按“数据如何流动”阅读，比按文件名字母顺序

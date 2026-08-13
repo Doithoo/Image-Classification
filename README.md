@@ -49,8 +49,7 @@ and lightweight inference.
 - **Professional training loop** — AMP, resume, early stopping, warmup + cosine
   LR, label smoothing, MixUp/CutMix, EMA, gradient clipping, full RNG seeding,
   per-epoch CSV metrics.
-- **Model zoo** — maintained timm/torchvision backbones and educational
-  hand-written implementations behind a single registry.
+- **Model zoo** — maintained timm/torchvision backbones behind one registry.
 - **Interpretability & deployment** — Grad-CAM heatmaps (`garbage explain`),
   TTA, ONNX export, Gradio demo.
 - **Quality gates** — ruff lint/format, behavioral pytest coverage, GitHub Actions CI
@@ -205,8 +204,7 @@ Image-Classification/
 │   ├── cli.py            CLI presentation layer (arg parsing + dispatch)
 │   ├── config.py         typed config (YAML + dotted overrides)
 │   ├── data/             manifests, dataset, transforms, prepare-data logic
-│   ├── models/           registry + timm zoo + educational implementations
-│   │   └── legacy_models/   hand-written reference models (lazy-loaded)
+│   ├── models/           registry + maintained timm/torchvision backbones
 │   ├── training/         Trainer, checkpoints, train command logic
 │   ├── evaluation/       metrics, reports, evaluate command logic
 │   ├── inference/        Predictor, Grad-CAM, ONNX export, demo

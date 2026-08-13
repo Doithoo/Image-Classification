@@ -191,8 +191,8 @@ def test_source_records_relative_data_root_schema(tmp_path):
     assert manifest_root(manifest_dir) == (tmp_path / "data").resolve()
 
 
-def test_manifest_root_reads_legacy_absolute_data_dir(tmp_path):
-    data_dir = tmp_path / "legacy-data"
+def test_manifest_root_reads_absolute_data_dir_schema(tmp_path):
+    data_dir = tmp_path / "absolute-data"
     data_dir.mkdir()
     manifest_dir = tmp_path / "manifests"
     manifest_dir.mkdir()

@@ -78,5 +78,5 @@ YAML 和命令行可以覆盖它们。
 
 以下是操作参数，不属于实验配置：`--resume`、`--dry-run`、`--checkpoint`、
 `--split`、`--plot`、`--tta`、`--top-k`、`--image`、`--output`、`--opset`、
-`--no-verify`、`--class-idx`、`--alpha`、`--share`、`--strict`、`--legacy`。
+`--no-verify`、`--class-idx`、`--alpha`、`--share`、`--strict`。
 运行 `garbage <命令> --help` 查看它们的取值和作用范围。

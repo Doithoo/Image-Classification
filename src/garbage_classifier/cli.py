@@ -222,8 +222,6 @@ def cmd_bench(args: argparse.Namespace) -> int:
     print(f"{'model':32s} {'params':>10s} {'MACs':>12s}")
     print("-" * 58)
     for name in available_models():
-        if name.startswith("legacy_") and not args.legacy:
-            continue
         try:
             model = create_model(name, num_classes=6, pretrained=False).eval()
             params = get_num_parameters(model) / 1e6
@@ -312,7 +310,6 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("bench", help="list registry models with params/FLOPs")
     _add_debug_arg(p)
     p.add_argument("--input-size", type=int, default=224)
-    p.add_argument("--legacy", action="store_true", help="include legacy models")
     p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("demo", help="launch the Gradio web demo")

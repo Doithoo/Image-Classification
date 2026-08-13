@@ -38,7 +38,6 @@ dev = [
     "twine>=5,<7",
     "tomli>=2,<3; python_version < '3.11'",
     "ptflops>=0.7,<1",
-    "torchinfo>=1.8,<2",
     "matplotlib>=3.6,<4",
     "lion-pytorch>=0.0.8,<1",
 ]
@@ -67,7 +66,6 @@ garbage_classifier = ["py.typed"]
 line-length = 120
 target-version = "py310"
 src = ["src", "tests"]
-extend-exclude = ["src/garbage_classifier/models/legacy_models"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]

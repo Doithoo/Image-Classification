@@ -85,5 +85,5 @@ below come from `config.py`; YAML and CLI overrides may replace them.
 Some controls are command operations rather than experiment configuration:
 `--resume`, `--dry-run`, `--checkpoint`, `--split`, `--plot`, `--tta`,
 `--top-k`, `--image`, `--output`, `--opset`, `--no-verify`, `--class-idx`,
-`--alpha`, `--share`, `--strict`, and `--legacy`. Run
+`--alpha`, `--share`, and `--strict`. Run
 `garbage <command> --help` for their accepted values and scope.

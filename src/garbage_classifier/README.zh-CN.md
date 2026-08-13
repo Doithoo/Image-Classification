@@ -40,5 +40,4 @@ garbage train
 3. `evaluation/metrics.py`、`inference/predictor.py`。
 4. `mixup.py`、`ema.py`、`checkpoint.py` 和 manifest 私有辅助函数。
 
-`models/legacy_models/` 是选读的手写网络结构参考，不是日常创建模型的入口。所有用户
-配置参数见[配置参数参考](../../docs/config-reference.zh-CN.md)。
+所有用户配置参数见[配置参数参考](../../docs/config-reference.zh-CN.md)。

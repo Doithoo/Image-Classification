@@ -91,9 +91,25 @@ def test_model_forward(name):
 
 
 def test_registry_exposes_models():
-    names = available_models()
-    assert "resnet50" in names
-    assert "tv_resnet50" in names
+    assert available_models() == [
+        "convnext_small",
+        "convnext_tiny",
+        "efficientnet_b0",
+        "efficientnet_b3",
+        "efficientnetv2_s",
+        "mobilenetv3_large_100",
+        "mobilenetv3_small_100",
+        "regnetx_002",
+        "regnetx_004",
+        "resnet101",
+        "resnet152",
+        "resnet18",
+        "resnet34",
+        "resnet50",
+        "swin_tiny_patch4_window7_224",
+        "tv_resnet50",
+        "vit_base_patch16_224",
+    ]
 
 
 def test_unknown_model_raises():

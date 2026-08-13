@@ -17,10 +17,8 @@ Given N predictions, we build a confusion matrix ``M`` with
     **weighted F1** = F1 weighted by class support (follows the data
     distribution).
 
-Note: the legacy ``Code/utils/confusion_matrix.py`` used the opposite
-orientation (``matrix[p, t]``). This module follows the standard
-``matrix[true, pred]`` convention, which makes the arithmetic above direct and
-the plotted heatmap intuitive.
+This module follows the standard ``matrix[true, pred]`` convention, which makes
+the arithmetic above direct and the plotted heatmap intuitive.
 """
 
 from __future__ import annotations
