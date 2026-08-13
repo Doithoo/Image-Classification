@@ -40,7 +40,7 @@ class ModelConfig:
     """Model selection."""
 
     name: str = "resnet50"  # key of the model registry (timm model or legacy_* name)
-    num_classes: int = 6
+    num_classes: int | None = None  # derived from the manifest unless explicitly asserted
     pretrained: bool = True
 
 
@@ -146,7 +146,7 @@ def _require_type(key: str, value: Any, expected: type[Any]) -> None:
 
 
 def _require_number(key: str, value: Any) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, int | float):
         _fail(key, value, "a number")
     return float(value)
 
@@ -199,13 +199,14 @@ def _validate_config(cfg: ExperimentConfig) -> None:
         ("data.image_size", cfg.data.image_size, 1),
         ("data.resize_size", cfg.data.resize_size, 1),
         ("data.num_workers", cfg.data.num_workers, 0),
-        ("model.num_classes", cfg.model.num_classes, 1),
         ("train.epochs", cfg.train.epochs, 1),
         ("train.batch_size", cfg.train.batch_size, 1),
         ("train.warmup_epochs", cfg.train.warmup_epochs, 0),
         ("train.early_stop_patience", cfg.train.early_stop_patience, 0),
     ):
         _require_int_range(key, value, minimum)
+    if cfg.model.num_classes is not None:
+        _require_int_range("model.num_classes", cfg.model.num_classes, 1)
     if cfg.data.resize_size < cfg.data.image_size:
         _fail("data.resize_size", cfg.data.resize_size, f">= data.image_size ({cfg.data.image_size})")
     for key, value in (

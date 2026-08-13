@@ -36,15 +36,15 @@ def train_from_config(
     run_dir = Path(cfg.output_dir) / (
         run_name or cfg.run_name or f"{cfg.model.name}-{__import__('time').strftime('%Y%m%d-%H%M%S')}"
     )
-    run_dir.mkdir(parents=True, exist_ok=True)
-    dump_config(cfg, run_dir / "config.yaml")
-    logger.info("run dir: %s", run_dir)
-
     class_names = manifest_classes(cfg.data.manifest_dir)
-    if len(class_names) != cfg.model.num_classes:
+    if cfg.model.num_classes is not None and len(class_names) != cfg.model.num_classes:
         raise ValueError(
             f"model.num_classes={cfg.model.num_classes} does not match manifest class count {len(class_names)}"
         )
+    cfg.model.num_classes = len(class_names)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    dump_config(cfg, run_dir / "config.yaml")
+    logger.info("run dir: %s", run_dir)
 
     train_ds = ImageClassificationDataset(
         Path(cfg.data.manifest_dir) / "train.csv", transform=build_train_transform(cfg.data)

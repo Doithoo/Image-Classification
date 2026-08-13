@@ -66,7 +66,9 @@ def test_classification_report_uses_weighted_precision_and_recall():
     preds = np.array([0, 0, 1, 1])
     metrics = evaluate_predictions(preds, labels, num_classes=2)
 
-    weighted_row = next(line for line in classification_report(metrics, ["a", "b"]).splitlines() if "weighted avg" in line)
+    weighted_row = next(
+        line for line in classification_report(metrics, ["a", "b"]).splitlines() if "weighted avg" in line
+    )
 
     assert f"{metrics['weighted_precision']:.3f}" in weighted_row
     assert f"{metrics['weighted_recall']:.3f}" in weighted_row

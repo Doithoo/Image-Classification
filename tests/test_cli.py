@@ -69,9 +69,7 @@ def test_explain_rejects_class_outside_checkpoint_classes(tmp_path, monkeypatch,
 
     monkeypatch.setattr("garbage_classifier.inference.Predictor", FakePredictor)
 
-    result = cli.main(
-        ["explain", "--checkpoint", "model.pt", "--image", str(image), "--class-idx", "2"]
-    )
+    result = cli.main(["explain", "--checkpoint", "model.pt", "--image", str(image), "--class-idx", "2"])
 
     assert result == 2
     assert "error: class index 2 is outside the valid range [0, 1]" in capsys.readouterr().err

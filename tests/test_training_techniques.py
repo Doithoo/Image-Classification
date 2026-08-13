@@ -110,6 +110,7 @@ def test_warmup_then_cosine_scheduler():
     lrs = []
     for _ in range(10):
         lrs.append(trainer.optimizer.param_groups[0]["lr"])
+        trainer.optimizer.step()
         trainer.scheduler.step()
     # warmup phase: strictly increasing
     assert lrs[0] < lrs[1] < lrs[2] < lrs[3]

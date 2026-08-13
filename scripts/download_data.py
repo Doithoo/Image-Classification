@@ -59,6 +59,16 @@ def apply_dataset_audit(data_dir: Path) -> list[str]:
     return [relative_path for relative_path, _ in present]
 
 
+def _move_extracted_entries(extracted_dir: Path, destination: Path) -> None:
+    """Move verified archive entries into a newly-created destination."""
+    destination.mkdir(parents=True, exist_ok=True)
+    for entry in list(extracted_dir.iterdir()):
+        if entry.name.startswith("._"):
+            entry.unlink()
+            continue
+        shutil.move(str(entry), destination / entry.name)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", default="data/raw", help="destination directory (class folders land here)")
@@ -89,12 +99,7 @@ def main() -> int:
     if tmp.exists():
         shutil.rmtree(tmp)
     shutil.unpack_archive(archive, tmp)
-    # macOS may create AppleDouble (._*) junk on extraction; drop it
-    for entry in list(tmp.iterdir()):
-        if entry.name.startswith("._"):
-            entry.unlink()
-            continue
-        shutil.move(str(entry), out / entry.name)
+    _move_extracted_entries(tmp, out)
     tmp.rmdir()
     archive.unlink()
 

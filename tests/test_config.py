@@ -154,6 +154,15 @@ def test_model_config_no_longer_exposes_timm_backbone():
         load_config(overrides={"model.timm_backbone": "resnet18"})
 
 
+def test_num_classes_defaults_to_manifest_derived_value():
+    assert load_config().model.num_classes is None
+
+
+def test_optional_num_classes_must_be_positive_when_set():
+    with pytest.raises(ValueError, match=r"model\.num_classes"):
+        load_config(overrides={"model.num_classes": 0})
+
+
 def test_dump_roundtrip(tmp_path):
     cfg = load_config(overrides={"train.epochs": 3, "run_name": "x"})
     out = tmp_path / "out.yaml"

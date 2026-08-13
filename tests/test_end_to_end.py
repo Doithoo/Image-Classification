@@ -29,6 +29,17 @@ def test_training_rejects_manifest_class_count_mismatch(tmp_path, monkeypatch):
         train_module.train_from_config(cfg)
 
 
+def test_training_derives_manifest_class_count_when_omitted(tmp_path):
+    from garbage_classifier.training.train import train_from_config
+
+    cfg_path = _tiny_train(tmp_path)
+    cfg = load_config(cfg_path, overrides={"model.num_classes": None})
+
+    run_dir = train_from_config(cfg, dry_run=True)
+
+    assert load_config(run_dir / "config.yaml").model.num_classes == 3
+
+
 def test_trainer_uses_manifest_class_count_for_mixup_and_metrics(tmp_path, monkeypatch):
     from garbage_classifier.training.trainer import Trainer
 

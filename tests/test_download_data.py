@@ -54,3 +54,15 @@ def test_apply_dataset_audit_fails_before_deleting_on_hash_mismatch(tmp_path, mo
 
 def test_apply_dataset_audit_is_idempotent_when_targets_are_absent(tmp_path):
     assert download_data.apply_dataset_audit(tmp_path) == []
+
+
+def test_move_extracted_entries_creates_destination_directory(tmp_path):
+    extracted = tmp_path / "extract"
+    source = extracted / "paper"
+    source.mkdir(parents=True)
+    (source / "paper1.jpg").write_bytes(b"image")
+    destination = tmp_path / "missing" / "raw"
+
+    download_data._move_extracted_entries(extracted, destination)
+
+    assert (destination / "paper" / "paper1.jpg").read_bytes() == b"image"

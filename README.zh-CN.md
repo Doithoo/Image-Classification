@@ -45,7 +45,7 @@
 - **模型库** —— 注册表背后的 17 个维护版 timm/torchvision 主干 + 38 个 `legacy_*` 键。
 - **可解释性与部署** —— Grad-CAM 热力图（`garbage explain`）、TTA、ONNX 导出、
   Gradio 演示。
-- **质量门禁** —— ruff lint/format、44 个 pytest 测试、GitHub Actions CI
+- **质量门禁** —— ruff lint/format、行为级 pytest 覆盖、GitHub Actions CI
   （Python 3.10–3.12）、pre-commit 钩子。
 
 ## 快速开始

@@ -145,7 +145,9 @@ def cmd_predict(args: argparse.Namespace) -> int:
             raise ValueError(f"unsupported image file: {target}")
         targets = [target]
     elif target.is_dir():
-        targets = sorted(path for path in target.iterdir() if path.is_file() and path.suffix.lower() in supported_suffixes)
+        targets = sorted(
+            path for path in target.iterdir() if path.is_file() and path.suffix.lower() in supported_suffixes
+        )
         if not targets:
             raise ValueError(f"no supported images found in directory: {target}")
     else:

@@ -53,7 +53,7 @@ and lightweight inference.
   behind a single registry.
 - **Interpretability & deployment** — Grad-CAM heatmaps (`garbage explain`),
   TTA, ONNX export, Gradio demo.
-- **Quality gates** — ruff lint/format, 44 pytest tests, GitHub Actions CI
+- **Quality gates** — ruff lint/format, behavioral pytest coverage, GitHub Actions CI
   (Python 3.10–3.12), pre-commit hooks.
 
 ## Quick start

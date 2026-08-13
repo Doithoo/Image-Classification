@@ -73,6 +73,7 @@ def test_trainer_resume_restores_full_state_and_rng(tmp_path):
     with torch.no_grad():
         source.model.weight.add_(1.5)
     source.optimizer.param_groups[0]["lr"] = 0.0123
+    source.optimizer.step()
     source.scheduler.step()
     expected_lr = source.optimizer.param_groups[0]["lr"]
     source.ema.update(source.model)
