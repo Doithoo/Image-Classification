@@ -32,5 +32,3 @@ pytest
 
 行为错误请使用 bug 表单，学习材料不清楚请使用 learning 表单，代码修改请使用 PR
 模板。
-
-如需了解项目重构前的历史状态，请参阅[历史基线与重构记录](docs/archive/baseline.md)。
