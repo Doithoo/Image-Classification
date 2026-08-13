@@ -87,6 +87,20 @@ def test_beginner_code_tour_and_examples_are_packaged_in_source_tree():
     assert len(list((ROOT / "examples").glob("[0-9][0-9]_*.py"))) == 5
 
 
+def test_root_readmes_offer_one_beginner_workflow():
+    english = (ROOT / "README.md").read_text()
+    chinese = (ROOT / "README.zh-CN.md").read_text()
+
+    assert "## Start here" in english
+    assert "## 从这里开始" in chinese
+    for readme in (english, chinese):
+        assert "configs/learning_minimal.yaml" in readme
+        assert "garbage train" in readme
+        assert "garbage evaluate" in readme
+        assert "garbage predict" in readme
+        assert "garbage show-config" in readme
+
+
 def test_code_directories_explain_their_audience_and_role():
     for directory in ("scripts", "src", "tests"):
         for name in ("README.md", "README.zh-CN.md"):

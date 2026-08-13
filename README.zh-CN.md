@@ -6,247 +6,149 @@
 
 **English version: [README.md](README.md)**
 
-基于 PyTorch 的垃圾分类图像分类项目（6 类：纸板 / 玻璃 / 金属 / 纸 / 塑料 /
-其他垃圾）—— 配置驱动训练、诚实全面的评测指标、自包含 checkpoint、轻量推理。
+这是一个从数据准备、训练、评测到部署的 PyTorch 图像分类学习项目。示例任务包含
+六类垃圾：cardboard、glass、metal、paper、plastic 和 trash。
 
-> **项目定位：学习练习项目。** 代码追求"正确、清晰、讲清为什么"—— 每个非平凡
-> 模块都带教学注释，文档构成一条从零到会训练自己图像分类模型的完整路线。
->
-> 如果你是初学者，**从这里开始：[学习路线](docs/learning-path.zh-CN.md)** ——
-> 它告诉你每一步该读什么、跑什么、练习什么，最终你会亲手训练并评测自己的模型，
-> 并能解释报告上每一个数字的含义。
+本项目按“边运行边学习”的方式设计。第一次使用时，不需要先看懂所有文件，也不需要
+先掌握所有训练技巧。
 
-## 目录
+## 从这里开始
 
-- [功能特性](#功能特性)
-- [快速开始](#快速开始)
-- [学习路线（初学者必读）](#学习路线初学者必读)
-- [配置系统](#配置系统)
-- [模型库](#模型库timm-主干网络)
-- [数据集](#数据集)
-- [项目结构](#项目结构)
-- [类别不平衡消融实验](#类别不平衡消融实验)
-- [可复现性保证](#可复现性保证)
-- [文档索引](#文档索引)
-- [许可证](#许可证)
+第一次使用建议严格按照下面的顺序：
 
-## 功能特性
+    README -> 学习路线 -> 最小配置 -> 训练 -> 评测 -> 推理
 
-- **配置驱动实验** —— 模型、超参数、数据设置全部写在 YAML 里；换模型只需改一个
-  参数，永远不用改源码。
-- **可移植数据管道** —— CSV manifest 使用平台无关的相对路径；固定种子的分层切分、
-  坏图/重复图校验、数据摘要与校验和。
-- **自包含推理 checkpoint** —— 权重、类别表、预处理参数与模型配置一起保存，预测时
-  不需要训练配置。
-- **类别不平衡感知** —— 用 `balanced_accuracy` / `macro_f1` 选最优权重；输出每类
-  precision/recall/F1、混淆矩阵、预测 CSV 和错误样本清单。
-- **专业训练循环** —— AMP、断点续训、早停、warmup + cosine 学习率、标签平滑、
-  MixUp/CutMix、EMA、梯度裁剪、完整随机种子、逐 epoch CSV 指标。
-- **模型库** —— 统一注册表提供维护版 timm/torchvision 主干网络。
-- **可解释性与部署** —— Grad-CAM 热力图（`garbage explain`）、TTA、ONNX 导出、
-  Gradio 演示。
-- **质量门禁** —— ruff lint/format、行为级 pytest 覆盖、GitHub Actions CI
-  （Python 3.10–3.12）、pre-commit 钩子。
+1. 先读[学习路线](docs/learning-path.zh-CN.md)，它会告诉你每个阶段该学什么、运行
+   什么、观察什么。
+2. 安装项目，使用[最小配置](configs/learning_minimal.yaml)完成第一次训练。
+3. 先训练 2～3 个 epoch，读懂评测报告，再预测一张图片。
+4. 完成第一次闭环后，再读[代码导览](docs/code-tour.zh-CN.md)，每次只修改一个配置项。
 
-## 快速开始
+项目默认你会一些 Python。如果还不熟悉 Tensor、logits、loss 或梯度，先看
+[深度学习最小概念](docs/tutorial/00-basics.zh-CN.md)。
 
-```bash
-# 1. 创建并激活环境（Python >= 3.10）
-uv venv
-source .venv/bin/activate                   # Windows: .venv\Scripts\activate
-uv pip install -e ".[dev]"
+## 项目包含什么
 
-# 2. 下载、校验、应用数据质量修正，再生成可移植清单
-python scripts/download_data.py            # -> data/raw/
-garbage prepare-data --set data.data_dir data/raw
+- 可复现的训练集、验证集和测试集 manifest，以及数据质量检查。
+- 默认值清晰可见、支持命令行覆盖的 YAML 实验配置。
+- 维护中的 CNN 和 Transformer 主干网络，以及可选的预训练权重。
+- 包含 checkpoint、断点续训、AMP、早停、MixUp/CutMix、EMA 和类别不平衡策略的
+  可读训练循环。
+- 不只看 accuracy，同时输出每类 precision、recall、F1、balanced accuracy、
+  混淆矩阵和错误样本。
+- 单图与批量预测、TTA、Grad-CAM、ONNX 导出和 Gradio 演示。
 
-# 3. 用稳定运行名训练轻量 MobileNet
-garbage train --config configs/resnet50.yaml \
-  --set model.name mobilenetv3_small_100 \
-  --set train.epochs 3 --set train.batch_size 16 \
-  --set data.num_workers 0 --set run_name quickstart-mobilenet
+## 安装环境
 
-# 4. 在留出的测试集上评测最优 checkpoint
-garbage evaluate --checkpoint artifacts/quickstart-mobilenet/best.pt --plot
+支持 Python 3.10、3.11 和 3.12。下面使用 uv，也可以使用普通虚拟环境和
+pip install -e ".[dev]"。
 
-# 5. 预测单张图 / 整个文件夹
-garbage predict --checkpoint artifacts/quickstart-mobilenet/best.pt \
-  --image data/raw/paper/paper1.jpg --top-k 3
-garbage predict --checkpoint artifacts/quickstart-mobilenet/best.pt --image <文件夹>
+    uv venv
+    source .venv/bin/activate              # Windows: .venv\Scripts\activate
+    uv pip install -e ".[dev]"
 
-# 6. 进阶工具：Grad-CAM 热力图、模型尺寸表
-garbage explain --checkpoint artifacts/quickstart-mobilenet/best.pt \
-  --image data/raw/paper/paper1.jpg
-garbage bench
-```
+先确认命令可用，再下载数据：
 
-ONNX 与网页演示使用可选依赖：
+    garbage --help
+    garbage show-config --config configs/learning_minimal.yaml
 
-```bash
-uv pip install -e ".[onnx]"
-garbage export-onnx --checkpoint artifacts/quickstart-mobilenet/best.pt --output model.onnx
+## 第一次实验
 
-uv pip install -e ".[demo]"
-garbage demo --checkpoint artifacts/quickstart-mobilenet/best.pt
-```
+下载公开数据集、生成可移植 manifest，然后运行一次短训练。下载脚本会先校验压缩包，
+再应用数据质量修正；下载的数据和训练产物只保留在本地，不会提交进仓库。
 
-一行 CPU 冒烟运行（长训练前的快速检查）：
+    python scripts/download_data.py
+    garbage prepare-data --set data.data_dir data/raw
+    garbage train --config configs/learning_minimal.yaml --dry-run
 
-```bash
-garbage train --config configs/resnet50.yaml --set model.name mobilenetv3_small_100 \
-  --set train.epochs 1 --set train.batch_size 8 --set data.num_workers 0 \
-  --set device cpu --set run_name quickstart-smoke
-# 或只跑 1 个 batch 验证整条管线：
-garbage train --config configs/resnet50.yaml --dry-run
-```
+    garbage train --config configs/learning_minimal.yaml \
+      --set train.epochs 2 --set run_name first-run
 
-## 学习路线（初学者必读）
+运行产物会写入 artifacts/first-run/，其中包括配置、指标和 checkpoint。开始长训练
+前，可以先查看最终生效的配置：
 
-**不知道从哪开始？跟着 [学习路线](docs/learning-path.zh-CN.md) 走。**
-它是 7 个阶段的课程，带你从"什么是图像分类？"到"我亲手训练并评测了自己的模型，
-并且能解释报告上每一个数字"—— 每阶段都列出该读什么、该跑什么、练习什么，
-并给出预期观察。
+    garbage show-config --config configs/learning_minimal.yaml \
+      --set train.epochs 5 --device cpu
 
-| 阶段 | 主题 | 核心收获 |
+## 使用 checkpoint
+
+评测会使用训练时留出的测试集；推理会从 checkpoint 恢复类别名和预处理参数，不需要
+再次手工填写训练配置。
+
+    garbage evaluate --checkpoint artifacts/first-run/best.pt --plot
+    garbage predict --checkpoint artifacts/first-run/best.pt \
+      --image data/raw/paper/paper1.jpg --top-k 3
+
+完成基础闭环后，再尝试这些可选工具：
+
+    garbage explain --checkpoint artifacts/first-run/best.pt \
+      --image data/raw/paper/paper1.jpg
+    garbage bench
+
+    uv pip install -e ".[onnx]"
+    garbage export-onnx --checkpoint artifacts/first-run/best.pt --output model.onnx
+
+    uv pip install -e ".[demo]"
+    garbage demo --checkpoint artifacts/first-run/best.pt
+
+## 你将学会什么
+
+| 阶段 | 要回答的问题 | 主要产出 |
 |---|---|---|
-| 1 | 问题与数据 | 类别不平衡、训练/验证/测试集纪律 |
-| 2 | 数据管道 | 可移植 manifest、数据增强、为什么按种子切分 |
-| 3 | 第一个模型 | timm 主干、模型注册表 |
-| 4 | 训练循环 | 损失、优化器、学习率调度、warmup、MixUp、EMA |
-| 5 | 评测 | accuracy vs balanced accuracy、F1、混淆矩阵 |
-| 6 | 推理与解释 | predict、Grad-CAM、TTA、ONNX |
-| 7 | 实验与可复现 | config.yaml 是唯一真相 |
+| 1. 数据 | 分类什么，应该怎样切分？ | 经过检查的 manifest 和类别统计 |
+| 2. 数据管道 | 图片如何变成 Tensor batch？ | Dataset、变换和 DataLoader |
+| 3. 模型 | backbone、分类头和注册表是什么？ | 可配置的预训练分类器 |
+| 4. 训练 | loss、梯度和学习率怎样改变权重？ | 可复现的训练循环 |
+| 5. 评测 | 为什么不能只看 accuracy？ | 每类指标和混淆矩阵 |
+| 6. 推理 | 训练好的模型怎样真正使用？ | 单图、批量和 TTA 预测 |
+| 7. 部署 | 其他程序怎样调用模型？ | Grad-CAM、ONNX 和 Gradio |
 
-配套文档：[`docs/how-it-works.md`](docs/how-it-works.md) 讲解数据流与训练循环里
-每一项技术的原理；[`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md) 收录可运行的
-实验和从结果中提炼的学习要点。
+完整课程见[学习路线](docs/learning-path.zh-CN.md)；需要某一步的详细操作时，查阅
+[实操教程](docs/tutorial/README.zh-CN.md)。
 
-## 配置系统
+## 配置与模型
 
-每个实验是一个 YAML 文件，含三个区块（`data`、`model`、`train`）；任何子集都会
-覆盖默认值（见 `src/garbage_classifier/config.py`）。CLI 可用点号键覆盖任意值：
+实验参数写在 YAML 中，生效顺序如下：
 
-```bash
-garbage train --config configs/resnet50.yaml \
-  --set train.lr 1e-4 \
-  --set model.name swin_tiny_patch4_window7_224 \
-  --set train.epochs 80
-```
+    代码默认值 < YAML 文件 < --set 覆盖 < 专用命令行参数
 
-不启动训练，先查看合并后的最终参数：
+所有字段的含义、默认值和相互关系见[配置参数参考](docs/config-reference.zh-CN.md)。
+[最小配置](configs/learning_minimal.yaml)关闭了大多数进阶技巧，适合第一次读训练循环。
 
-```bash
-garbage show-config --config configs/resnet50.yaml --set train.lr 1e-4
-```
+模型注册表提供维护中的 timm 和 torchvision 主干网络：
 
-每个字段的默认值、初学者建议和相关参数之间的关系，见
-[配置参数参考](docs/config-reference.zh-CN.md)。
+- resnet18、resnet34、resnet50、resnet101、resnet152
+- mobilenetv3_small_100、mobilenetv3_large_100
+- efficientnet_b0、efficientnet_b3、efficientnetv2_s
+- convnext_tiny、convnext_small、regnetx_002、regnetx_004
+- swin_tiny_patch4_window7_224、vit_base_patch16_224、tv_resnet50
 
-解析后的配置会保存到 `artifacts/<run>/config.yaml`。checkpoint 足以独立推理；
-完整复现实验还必须保存当时的 manifest、源数据与质量补丁版本、依赖锁文件，不能只靠
-artifact 目录。
-
-## 模型库（timm 主干网络）
-
-| 注册表键 | 参数量* | 说明 |
-|---|---:|---|
-| `resnet18/34/50/101/152` | 11.7M–60.2M | 经典基线 |
-| `convnext_tiny/small` | 28.6M–50.2M | 精度/算力均衡 |
-| `mobilenetv3_small_100/large_100` | 2.5M–5.5M | 移动端友好 |
-| `efficientnet_b0/b3`, `efficientnetv2_s` | 5.3M–21.5M | FLOPs 优化 |
-| `swin_tiny_patch4_window7_224` | 28.3M | Transformer |
-| `vit_base_patch16_224` | 86.6M | Transformer |
-| `regnetx_002/004` | 1.8M–5.2M | 轻量 |
-| `tv_resnet50` | 23.5M | torchvision 对照基线 |
-
-\* timm 的 ImageNet 预训练参数量。完整表格（含 FLOPs）运行 `garbage bench`；
-`available_models()` 列出全部注册键。
-
-## 数据集
-
-- 上游 v1 压缩包含 2527 张图。下载器先校验压缩包，再应用 `v1.0-audit.1` 质量补丁，
-  删除 3 个已复核的错误标签/重复项，然后按种子 666 分层切分 80/10/10。
-- **不平衡**：`trash` 仅占训练集 5.4%，而 `paper` 占 23.5% —— 只看 accuracy 会
-  被误导，所以评测总是输出 balanced accuracy、macro/weighted F1 与每类指标。
-- 托管在 GitHub Release（不在 git 里）：`garbage-classification.tar.gz`
-  （39.7 MB，SHA-256 `be0b99fc…ea1b6`）。用 `python scripts/download_data.py`
-  获取（自动校验）。
-- 原始来源是 Kaggle 公开数据集 "Garbage classification"。
+运行 garbage bench 可以比较参数量，以及在依赖可用时显示 FLOPs。
 
 ## 项目结构
 
-根据目标选择入口：
+    examples/                    适合先运行和阅读的 5 个小程序
+    configs/                     可直接运行的实验配置
+    docs/                        学习路线、教程和代码导览
+    scripts/                     下载、预览和绘图工具
+    src/garbage_classifier/      安装后运行的应用和可复用代码包
+    tests/                       行为测试和进阶参考
+    data/                        本地数据集与 manifest（gitignore）
+    artifacts/                   本地运行产物与 checkpoint（gitignore）
 
-```text
-使用与学习：README → 学习路线 → examples → src
-贡献与维护：CONTRIBUTING → tests → pyproject.toml → Makefile → CI
-```
-
-```
-Image-Classification/
-├── examples/             初学者优先阅读的小程序
-├── configs/              可直接运行的实验参数
-├── docs/                 学习路线、教程和代码导览
-├── scripts/              数据下载/检查/画图工具（目录内有 README）
-├── src/garbage_classifier/
-│   ├── cli.py            CLI 表现层（参数解析 + 分发）
-│   ├── config.py         类型化配置（YAML + 点号覆盖）
-│   ├── data/             manifest、数据集、变换、prepare-data 逻辑
-│   ├── models/           注册表 + 维护中的 timm/torchvision 主干网络
-│   ├── training/         Trainer、checkpoint、train 命令逻辑
-│   ├── evaluation/       指标、报告、evaluate 命令逻辑
-│   ├── inference/        Predictor、Grad-CAM、ONNX 导出、demo
-│   └── utils/            种子、设备、git revision、日志
-├── tests/                贡献者质量检查与进阶参考
-├── data/                 （gitignore）下载的数据集 + 生成的清单
-├── artifacts/            （gitignore）运行配置、指标、checkpoint 和图表
-├── pyproject.toml        安装信息、依赖与工具配置
-├── uv.lock               开发环境和 CI 的精确依赖版本
-└── Makefile              测试、检查和清理的贡献者快捷命令
-```
-
-安装时会使用 `pyproject.toml`；`uv.lock`、`Makefile` 和 `tests/` 主要服务贡献者与
-CI，初学阶段可以跳过。三个代码目录分别有中文说明：
-[`scripts/`](scripts/README.zh-CN.md)、[`src/`](src/README.zh-CN.md)、
-[`src/garbage_classifier/`](src/garbage_classifier/README.zh-CN.md) 和
-[`tests/`](tests/README.zh-CN.md)。
-
-## 类别不平衡消融实验
-
-`trash` 仅占训练集 5.4%，因此提供了三种可对比策略（这些配置用 `balanced_accuracy`
-选择最优 checkpoint）：
-
-| 配置 | 策略 |
-|---|---|
-| `configs/imbalance_none.yaml` | 普通 CE loss、均匀采样（基线） |
-| `configs/imbalance_weighted_loss.yaml` | loss 中按类别频率反比加权 |
-| `configs/imbalance_weighted_sampler.yaml` | `WeightedRandomSampler`（过采样稀有类） |
-
-示例结果和完整命令见
-[`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md#实验-3类别不平衡策略)。
-
-## 可复现性保证
-
-- [x] 全新环境：`pip install -e .` + 一条 CLI 命令 → CPU 冒烟运行
-- [x] checkpoint 携带独立推理所需的信息
-- [ ] 完整复现实验需归档 manifest、源数据质量补丁版本、配置、权重和依赖锁文件
-- [x] 推理永远不需要手工重复类别名 / 归一化参数 / 模型名
-- [x] CI 对 lint + 单元测试 + 最小训练流程全绿
+学习时按 examples/ -> docs/ -> src/ 阅读；贡献代码时阅读
+[贡献指南](CONTRIBUTING.zh-CN.md)，再查看 tests/、pyproject.toml 和 CI。三个代码目录
+各有说明：[scripts](scripts/README.zh-CN.md)、[src](src/README.zh-CN.md)、
+[tests](tests/README.zh-CN.md)。
 
 ## 文档索引
 
-| 文档 | 语言 | 用途 |
-|---|---|---|
-| [`docs/learning-path.md`](docs/learning-path.md) | EN | 初学者 7 阶段课程 |
-| [`docs/learning-path.zh-CN.md`](docs/learning-path.zh-CN.md) | 中文 | **初学者 0→1 学习路线（从这里开始）** |
-| [`docs/code-tour.zh-CN.md`](docs/code-tour.zh-CN.md) | 中文 | **代码阅读顺序与可跳过内容** |
-| [`docs/configuration-flow.zh-CN.md`](docs/configuration-flow.zh-CN.md) | 中文 | 配置优先级与参数传递路线 |
-| [`docs/config-reference.zh-CN.md`](docs/config-reference.zh-CN.md) | 中文 | 所有配置参数、默认值与相互关系 |
-| [`docs/tutorial/`](docs/tutorial/README.zh-CN.md) | 中文 | **实操教程：设备/数据/模型/训练策略** |
-| [`docs/tutorial/00-basics.zh-CN.md`](docs/tutorial/00-basics.zh-CN.md) | 中文 | 深度学习最小概念 |
-| [`docs/tutorial/05-inference-deployment.zh-CN.md`](docs/tutorial/05-inference-deployment.zh-CN.md) | 中文 | 推理、ONNX 与 Gradio 部署路径 |
-| [`docs/how-it-works.zh-CN.md`](docs/how-it-works.zh-CN.md) | 中文 | 数据流 + 每项技术为什么存在 |
-| [`docs/experiments.zh-CN.md`](docs/experiments.zh-CN.md) | 中文 | 可复现实验日志 + 教训 |
+- [学习路线](docs/learning-path.zh-CN.md) · [English learning path](docs/learning-path.md)
+- [代码导览](docs/code-tour.zh-CN.md) · [English code tour](docs/code-tour.md)
+- [配置参数参考](docs/config-reference.zh-CN.md) · [English reference](docs/config-reference.md)
+- [原理说明](docs/how-it-works.zh-CN.md) · [English guide](docs/how-it-works.md)
+- [实验记录](docs/experiments.zh-CN.md) · [English experiments](docs/experiments.md)
+- [实操教程](docs/tutorial/README.zh-CN.md)
 
 ## 许可证
 
