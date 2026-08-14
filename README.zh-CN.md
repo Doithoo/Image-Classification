@@ -86,6 +86,12 @@ garbage predict --checkpoint artifacts/first-run/best.pt \
 
 推理会从 checkpoint 恢复模型名称、类别和预处理参数，不需要再次手工填写训练配置。
 
+![ResNet50 参考实验的训练曲线](docs/assets/reference-resnet50-curves.png)
+
+一次经过核对的 15 epoch 运行在测试集上得到 93.33% accuracy。可以继续查看
+[参考运行说明](docs/reference-run.zh-CN.md)，其中保留了准确配置、运行环境、各类别结果和
+这个数字的适用范围。
+
 ## 接着读什么
 
 - 按[学习路线](docs/learning-path.zh-CN.md)继续，逐步理解每个环节，并做几组短小的
@@ -164,6 +170,7 @@ artifacts/                   本地运行产物与 checkpoint（gitignore）
 - [配置参数参考](docs/config-reference.zh-CN.md) · [English reference](docs/config-reference.md)
 - [原理说明](docs/how-it-works.zh-CN.md) · [English guide](docs/how-it-works.md)
 - [实验说明](docs/experiments.zh-CN.md) · [English experiments](docs/experiments.md)
+- [参考运行](docs/reference-run.zh-CN.md) · [English reference run](docs/reference-run.md)
 - [实操教程](docs/tutorial/README.zh-CN.md)
 
 ## 许可证

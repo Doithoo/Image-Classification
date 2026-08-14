@@ -25,6 +25,8 @@ htmlcov/
 # ---- 训练产物 ----
 **/save_weight
 **/*.png
+!docs/assets/
+!docs/assets/*.png
 artifacts/
 *.pth
 

@@ -1,0 +1,29 @@
+# Reproducible reference run shown in the README and docs/reference-run*.md.
+model:
+  name: resnet50
+  pretrained: true
+train:
+  epochs: 15
+  batch_size: 32
+  lr: 0.001
+  weight_decay: 0.0001
+  optimizer: adamw
+  scheduler: cosine
+  warmup_epochs: 5
+  label_smoothing: 0.1
+  mixup_alpha: 0.2
+  cutmix_alpha: 0.0
+  grad_clip: 1.0
+  amp: true
+  early_stop_patience: 15
+  best_metric: balanced_accuracy
+  ema: false
+  class_weight: none
+  sampler: none
+  seed: 42
+data:
+  image_size: 224
+  aug: randaug
+  num_workers: 0
+device: auto
+run_name: reference-resnet50

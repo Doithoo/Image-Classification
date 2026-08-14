@@ -93,6 +93,12 @@ workflow while each part is still easy to inspect.
 Prediction restores the model name, class names, and preprocessing values from
 the checkpoint. You do not need to repeat training settings by hand.
 
+![Reference ResNet50 training curves](docs/assets/reference-resnet50-curves.png)
+
+A verified 15-epoch run reached 93.33% test accuracy. Read the
+[reference-run notes](docs/reference-run.md) for the exact configuration,
+environment, class-level results, and the limits of that number.
+
 ## What to read next
 
 - Follow the [learning path](docs/learning-path.md) for a recommended reading
@@ -180,6 +186,7 @@ in [scripts](scripts/README.md), [src](src/README.md), and
 - [Configuration Reference](docs/config-reference.md) · [中文参数参考](docs/config-reference.zh-CN.md)
 - [How It Works](docs/how-it-works.md) · [中文原理说明](docs/how-it-works.zh-CN.md)
 - [Experiments](docs/experiments.md) · [中文实验说明](docs/experiments.zh-CN.md)
+- [Reference Run](docs/reference-run.md) · [中文参考运行](docs/reference-run.zh-CN.md)
 - [中文实操教程](docs/tutorial/README.zh-CN.md)
 
 ## License

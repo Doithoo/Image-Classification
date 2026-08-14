@@ -164,6 +164,26 @@ def test_own_data_guides_use_isolated_manifests_and_the_minimal_config():
     assert "../using-your-data.zh-CN.md" in (ROOT / "docs/tutorial/02-data.zh-CN.md").read_text()
 
 
+def test_reference_run_has_config_docs_and_visual_evidence():
+    expected = [
+        ROOT / "configs/reference_resnet50.yaml",
+        ROOT / "docs/reference-run.md",
+        ROOT / "docs/reference-run.zh-CN.md",
+        ROOT / "docs/assets/reference-resnet50-curves.png",
+        ROOT / "docs/assets/reference-resnet50-confusion.png",
+    ]
+    missing = [str(path.relative_to(ROOT)) for path in expected if not path.is_file()]
+    assert not missing, f"missing reference evidence: {missing}"
+
+    for name in ("reference-run.md", "reference-run.zh-CN.md"):
+        text = (ROOT / "docs" / name).read_text()
+        for fact in ("run.yaml", "evaluation.json", "255", "ResNet50"):
+            assert fact in text
+
+    assert "docs/reference-run.md" in (ROOT / "README.md").read_text()
+    assert "docs/reference-run.zh-CN.md" in (ROOT / "README.zh-CN.md").read_text()
+
+
 def test_code_directories_explain_their_audience_and_role():
     for directory in ("scripts", "src", "tests"):
         for name in ("README.md", "README.zh-CN.md"):
