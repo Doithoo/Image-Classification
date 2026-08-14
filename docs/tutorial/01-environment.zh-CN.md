@@ -58,7 +58,7 @@ pip install -e ".[dev]"
 **验证**：
 ```bash
 python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
-# 期望: 2.x.x False   （False 是正常的，我们走 CPU）
+# 期望: 2.x.x False   （False 表示当前使用 CPU，不影响基础流程）
 garbage train --config configs/resnet50.yaml --dry-run
 ```
 

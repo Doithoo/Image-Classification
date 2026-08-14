@@ -106,40 +106,14 @@ train_manifest_sha256=57ab9378...
 
 ---
 
-## 4. 使用你自己的数据集
+## 4. 换成其他数据时会变什么
 
-把任何图片数据集放进这个项目，只需满足第 1 节的结构：
+项目读取 `数据目录/<类别名>/*.{jpg,jpeg,png}` 这一层。生成 manifest 后，类别表与
+类别数来自 `source.yaml`，不需要手工修改 `model.num_classes`。
 
-```bash
-# 1. 把你的数据放到一个目录（这里以 mydata 为例）
-mkdir -p mydata
-# 把 cardboard/ glass/ ... 文件夹复制进来
-
-# 2. 用你的数据生成 manifest
-garbage prepare-data --set data.data_dir mydata
-
-# 3. 检查摘要：类别是否被正确识别
-cat data/manifests/summary.txt
-
-# 4. 训练（注意：prepare-data 会覆盖旧 manifest，切分以这次为准）
-garbage train --config configs/resnet50.yaml \
-  --set data.data_dir mydata
-```
-
-只读取 `mydata/<类别>/*.{jpg,jpeg,png}` 这一层；嵌套更深的图片不会被扫描。
-类别表与类别数由生成的 manifest `source.yaml` 决定，不要手工设置
-`model.num_classes`。
-
-**新手常见坑**：
-
-| 情况 | 症状 | 处理 |
-|---|---|---|
-| 类别名带空格/中文 | 路径解析怪异 | 类别文件夹名用英文小写+下划线 |
-| 图片损坏 | prepare-data 报 unreadable | 找出坏图删掉或重下 |
-| 图片是黑白的 | 模型输入要求 3 通道 | 代码会自动 `convert('RGB')`，无需处理 |
-| 类别数不是 6 | manifest 类别变化 | 重新运行 `prepare-data`，以 `source.yaml` 为准 |
-| 数据量很小（<1000 张） | 容易过拟合 | 见教程 4：增强 + 预训练 + 早停 |
-| 类别极不平衡（稀有类 <5%） | trash 类指标崩 | 见教程 4 的"不平衡怎么办" |
+为了避免覆盖垃圾分类的 manifest，其他数据应使用单独的 manifest 目录。准备前先看
+预览图，随后检查 `summary.txt` 中的类别、数量和切分。嵌套过深、坏图片、重复图片和
+样本极少的类别都应该在长训练前处理。
 
 ---
 
@@ -166,29 +140,17 @@ garbage train --config configs/resnet50.yaml \
 
 ---
 
-## 6. 把"数据准备"变成自己的肌肉记忆：练习
+## 6. 可以快速确认的两件事
 
 ```bash
-# 练习 1：重复切分是否一致？
+# 同一数据与种子是否得到相同切分？
 cp data/manifests/train.csv /tmp/before.csv
 garbage prepare-data --set data.data_dir data/raw
 diff data/manifests/train.csv /tmp/before.csv && echo "完全一致（种子生效）"
 
-# 练习 2：肉眼理解 manifest
-python - <<'EOF'
-from garbage_classifier.data import load_manifest, manifest_root
-rows = load_manifest("data/manifests/train.csv", manifest_root("data/manifests"))
-print(f"训练集 {len(rows)} 条")
-print("前 3 条:", rows[:3])
-# 统计每类数量
-from collections import Counter
-print("每类数量:", dict(Counter(label for _, label in rows)))
-EOF
-
-# 练习 3：看一次真实的数据变换效果（对比原图 vs 训练变换后的图）
+# 训练变换与验证变换的输出形状是否一致？
 python - <<'EOF'
 from PIL import Image
-import torch
 from garbage_classifier.config import load_config
 from garbage_classifier.data.transforms import build_train_transform, build_eval_transform
 cfg = load_config()
@@ -197,9 +159,6 @@ eval_t = build_eval_transform(cfg.data)
 img = Image.open("data/raw/cardboard/cardboard1.jpg")
 print("原图:", img.size)
 print("训练变换后:", tuple(train_t(img).shape), " 验证变换后:", tuple(eval_t(img).shape))
-# 训练变换跑 3 次，每次结果不同（随机性）
-for i in range(3):
-    print("  训练变换第", i, "次:", tuple(train_t(img).shape))
 EOF
 ```
 

@@ -21,8 +21,8 @@ softmax → 概率
 - **backbone** 负责"看懂图片"：边缘 → 纹理 → 局部形状 → 整体语义。
 - **head** 负责"投票"：把 backbone 理解到的特征归到 6 类之一。
 - 预训练模型的 backbone 在 ImageNet（1000 类、1400 万张图）上已经学会"看懂
-  通用图片"；我们只把 head 换成 6 类的（`num_classes=6`），再在垃圾图片上
-  微调 —— 这就是迁移学习。
+  通用图片"；这里只把 head 换成 6 类（`num_classes=6`），再在垃圾图片上微调。
+  这就是迁移学习。
 
 ## 2. 本项目里模型怎么组织（注册表）
 
@@ -161,8 +161,8 @@ garbage train --config configs/resnet50.yaml --set model.name my_cnn \
   --set model.pretrained false --set train.epochs 15 --set run_name mycnn-first
 ```
 
-预期：精度明显低于 mobilenet（约 40–50% vs 75%+）—— 这就是"为什么我们要用
-预训练大模型"的直观教材。
+这个模型通常不如预训练 MobileNet，但具体差距取决于数据切分、随机初始化和训练配置。
+先比较收敛速度与每类指标，再判断预训练带来了什么。
 
 ## 6. 理解 `garbage bench` 的输出
 

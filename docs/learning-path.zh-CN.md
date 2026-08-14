@@ -1,324 +1,219 @@
-# 图像分类学习路线（0 → 1）
+# 图像分类学习路线
 
-> 本路线面向初学者，用这个项目作为脚手架，从零学会"如何训练图像分类模型"。
-> 全程约 **8–12 小时**（含动手实验），按顺序完成即可。
->
-> **English version: [learning-path.md](learning-path.md)** ·
-> **卡住了？配套实操教程：[教程系列](tutorial/README.zh-CN.md)**
-> （不同设备怎么跑、数据怎么备、模型怎么建、超参怎么选）
+这条路线面向已经接触过 Python、Tensor、loss 和梯度，但还没有完整做过图像分类项目的
+学习者。按顺序阅读和运行大约需要 **8–12 小时**。第一次不必理解所有训练技巧，先让
+数据、模型、评测和推理连起来，再回头看细节。
 
-## 前置知识（可跳过，但建议扫一眼）
+如果 logits、loss 或梯度仍然陌生，先读
+[深度学习最小概念](tutorial/00-basics.zh-CN.md)。环境或设备问题可以查阅
+[设备与环境教程](tutorial/01-environment.zh-CN.md)。
 
-- Python 基础：函数、类、循环、`import`
-- PyTorch 基础：张量（tensor）、`nn.Module`、`optimizer.step()` 的直觉理解
-  （推荐先花 1 小时跑一遍 [PyTorch 60 分钟入门](https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html)）
-- 一点机器学习概念：训练集/验证集/测试集、过拟合、准确率
+## 开始之前
 
-**本路线不要求**：读过论文、懂数学推导、会写 CNN。
-
-如果你还不熟悉 logits、loss、梯度这些词，先读[深度学习最小概念](tutorial/00-basics.zh-CN.md)。
-
----
-
-## 阶段 0：环境准备（约 15 分钟）
-
-**目标**：把项目跑起来，看到第一条训练日志。
+确认 Python 版本和项目命令：
 
 ```bash
-cd Image-Classification
 uv venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-uv pip install -e ".[dev]"            # 安装依赖
-python scripts/download_data.py       # 下载数据集（自动校验 SHA-256）
-garbage prepare-data --set data.data_dir data/raw   # 生成清单
-garbage train --config configs/resnet50.yaml --dry-run  # 1 个 batch 冒烟
+uv pip install -e ".[dev]"
+garbage --version
+garbage show-config --config configs/learning_minimal.yaml
 ```
 
-第一次完整训练建议先用简化配置，先观察训练循环，再逐项打开高级策略：
+`show-config` 展示最终生效的完整配置。后面调整参数时，先看这里比凭记忆判断更可靠。
+
+## 先运行一次
+
+下载数据、生成固定切分，再用一个 batch 检查完整管道：
+
+```bash
+python scripts/download_data.py
+garbage prepare-data --set data.data_dir data/raw
+garbage train --config configs/learning_minimal.yaml --dry-run
+```
+
+日志中的 `dry-run OK` 表示图片可以加载、模型可以建立、前向与反向计算都能完成。
+这一步只检查管道，不评价精度。
+
+接着运行两个 epoch：
 
 ```bash
 garbage train --config configs/learning_minimal.yaml \
   --set train.epochs 2 --set run_name first-minimal-run
 ```
 
-**要观察的**：
-- `data/manifests/` 下生成了 `train.csv / valid.csv / test.csv`（含 `summary.txt`）
-- `--dry-run` 输出 `dry-run OK: input=(32,3,224,224) output=(32,6) loss=1.6xx`
-  —— 这代表：数据能读、模型能建、前向反向都能跑。
+先打开 `artifacts/first-minimal-run/config.yaml` 和 `metrics.csv`。配置说明这次实验到底
+用了什么，指标文件说明两个 epoch 之间发生了怎样的变化。
 
-**读什么**：`README.zh-CN.md` 的「快速开始」和「项目结构」。
-准备读源码时先跟着[代码导览](code-tour.zh-CN.md)，不要从 `cli.py` 顺序通读。
+## 看看数据
 
-**验证题**：从这次生成的 `data/manifests/summary.txt` 读出三个切分及每类数量。
-
----
-
-## 阶段 1：问题与数据（约 45 分钟）
-
-**目标**：理解任务本身 —— 6 类垃圾图片，以及为什么"只看准确率"会骗人。
-
-**读什么**：
-- [`docs/how-it-works.zh-CN.md`](how-it-works.zh-CN.md) 第 1–2 节（数据流总览、为什么用 CSV manifest）
-- `src/garbage_classifier/data/manifest.py` 顶部注释
-- 打开 `data/manifests/summary.txt` 看各类数量
-
-**动手**：`ls data/raw/` 查看每个类别文件夹，并生成预览图：
+模型开始训练之前，先确认分类对象和标签没有问题：
 
 ```bash
 python scripts/preview_dataset.py --data-dir data/raw
+cat data/manifests/summary.txt
 ```
 
-先打开 `artifacts/dataset-preview.png`，确认图片内容和类别文件夹相符。
+预览图适合发现放错目录、内容异常或类别含义不清的图片。`summary.txt` 记录类别、切分
+数量、随机种子和 manifest 校验和。
 
-**核心知识点（务必理解）**：
-1. **类别不平衡**：以质量检查后的 `summary.txt` 实际数量为准。一个永远猜最多类别的
-   模型也会有看似不低的 accuracy —— 所以后面我们用
-   `balanced_accuracy` / `macro_f1`，而不是只看 accuracy。
-2. **训练/验证/测试三分**：验证集用于选模型，测试集只用于最终评估，**绝不碰**。
-   这是防止"自欺欺人"的纪律。
-3. **为什么按种子切分**：`seed=666` 保证任何人跑 `prepare-data` 都得到同一份
-   切分 —— 这是"可复现实验"的第一步。
+这里值得留意三件事：
 
-**验证题**：根据 summary 计算全猜最多类别的 accuracy；它的 balanced accuracy
-是多少？（答案：1/6，揭示模型无用。）
+- `trash` 样本明显少于其他类别，单看 accuracy 容易忽略它。
+- 验证集用于比较配置，测试集只在选定方案后评测。
+- 固定种子让同一份数据得到相同切分，实验才有可比性。
 
----
+进一步的实现细节在 [原理说明](how-it-works.zh-CN.md) 的数据部分和
+`src/garbage_classifier/data/manifest.py`。
 
-## 阶段 2：数据管道（约 1 小时）
+## 图片怎样变成批次
 
-**目标**：弄清"图片 → 张量 → 批次"的完整旅程。
+一张图片进入训练循环前会经过 Dataset、变换和 DataLoader。建议按下面顺序阅读：
 
-**读什么**：
-- `src/garbage_classifier/data/dataset.py`（Dataset 如何工作）
-- `src/garbage_classifier/data/transforms.py`（每行变换的用途）
-- `src/garbage_classifier/data/manifest.py` 的 `build_manifest` / `load_manifest`
+```text
+src/garbage_classifier/data/manifest.py
+src/garbage_classifier/data/dataset.py
+src/garbage_classifier/data/transforms.py
+```
 
-**动手**：
+可以直接查看一个样本：
+
 ```bash
-garbage prepare-data --set data.data_dir data/raw --strict
 python -c "
 from garbage_classifier.data import ImageClassificationDataset
 from garbage_classifier.data.transforms import build_train_transform
 from garbage_classifier.config import load_config
+cfg = load_config('configs/learning_minimal.yaml')
 ds = ImageClassificationDataset('data/manifests/train.csv',
-      transform=build_train_transform(load_config().data))
-img, label = ds[0]
-print(img.shape, label)   # torch.Size([3, 224, 224]) 0
+      transform=build_train_transform(cfg.data))
+image, label = ds[0]
+print(image.shape, label)
 "
 ```
 
-下载脚本会先应用数据质量检查，strict 模式随后验证数据可以安全切分。
+输出应是 `[3, 224, 224]` 的张量和一个整数标签。训练变换带随机性，验证变换保持
+确定性；checkpoint 保存预处理参数，避免训练与推理使用不同的归一化方式。
 
-**核心知识点**：
-1. **为什么是 CSV manifest 而不是直接遍历文件夹**：相对路径 + 固定切分 =
-   可移植 + 可复现，在不同操作系统和工作目录下都能运行。
-2. **为什么训练集和验证集用不同的变换**：训练要多样性（随机裁剪/翻转/增强），
-   验证要稳定（固定居中裁剪）。`transforms.py` 里 `RandomResizedCrop` vs
-   `CenterCrop` 就是这对关系的体现。
-3. **归一化**：`Normalize(mean, std)` 把像素从 [0,1] 变成近似标准正态 —— 帮助
-   模型收敛。mean/std 从训练图片计算得到，训练/推理使用同一份参数（checkpoint
-   自带这些参数，见阶段 6）。
+## 模型怎样产生预测
 
-**验证题**：为什么验证集 DataLoader 的 `shuffle=False`？（提示：评测结果要确定）
+先读 `src/garbage_classifier/models/registry.py` 和 `models/zoo.py`。配置中的
+`model.name` 选择 backbone，manifest 中的类别表决定分类头输出维度。
 
----
-
-## 阶段 3：第一个模型（约 45 分钟）
-
-**目标**：理解"模型注册表"和主干网络（backbone）的概念。
-
-**读什么**：
-- `src/garbage_classifier/models/registry.py`（注册表怎么工作）
-- `src/garbage_classifier/models/zoo.py`（timm 如何接入）
-- `src/garbage_classifier/config.py` 的 `ModelConfig`
-
-**动手**：
 ```bash
-garbage bench                          # 看每个模型多大（参数量 + FLOPs）
-garbage train --config configs/resnet50.yaml --set train.epochs 1 --set device cpu
+garbage bench
+garbage show-config --config configs/learning_minimal.yaml
 ```
 
-**核心知识点**：
-1. **backbone（主干）**：ResNet50 等预训练网络负责提取特征，最后接一个新的
-   分类头（把 1000 类 ImageNet 输出换成我们的 6 类）。`num_classes=6` 就是干这个。
-2. **预训练 vs 从零**：`pretrained: true` 用 ImageNet 上训好的权重初始化。运行
-   实验 2，亲自测量迁移学习对这个数据集的帮助。
-3. **为什么用注册表**：`config.yaml` 里写 `model.name` 就能换模型，代码不用动。
-   这叫"配置驱动" —— 实验配置清晰，模型切换无需修改训练代码。
+`bench` 适合比较参数量，不代表参数更多就一定更适合当前数据。预训练模型通常能在小
+数据集上更快得到可用结果，从零训练则更容易看清随机初始化与数据规模的影响。
 
-**验证题**：`garbage bench` 里 mobilenetv3_small 的参数量约为 resnet50 的几分之几？
-猜一下两者精度差多少，再用实验 2 验证。
+更完整的模型解释见[模型构建与定制](tutorial/03-model.zh-CN.md)。
 
----
+## 训练循环在做什么
 
-## 阶段 4：训练循环（约 2 小时，核心阶段）
+先运行最小示例，再读正式训练器：
 
-**目标**：真正理解一次训练迭代里发生了什么。
-
-**读什么（配合代码逐行看）**：
-- `src/garbage_classifier/training/trainer.py` —— 重点看 `_run_epoch` 和 `fit`
-- `src/garbage_classifier/training/mixup.py` 顶部注释（MixUp/CutMix 原理）
-- `src/garbage_classifier/training/ema.py` 顶部注释（EMA 原理）
-- `src/garbage_classifier/training/weights.py`（类别不平衡的两种处理）
-
-**动手（三组对比实验，每组约 6 分钟）**：
 ```bash
-# A. 基线
-garbage train --config configs/imbalance_none.yaml --set model.name mobilenetv3_small_100 \
-  --set train.epochs 15 --set train.mixup_alpha 0 --set data.num_workers 0 --set run_name learn-a
-
-# B. 打开 MixUp
-garbage train --config configs/imbalance_none.yaml --set model.name mobilenetv3_small_100 \
-  --set train.epochs 15 --set train.mixup_alpha 0.2 --set data.num_workers 0 --set run_name learn-b
-
-# 对比两条训练曲线
-python scripts/plot_metrics.py artifacts/learn-a/metrics.csv
-python scripts/plot_metrics.py artifacts/learn-b/metrics.csv
+python examples/03_minimal_training.py
 ```
 
-**核心知识点（训练循环的心智模型）**：
-```
+```text
+每个 batch：
+  outputs = model(images)
+  loss = loss_fn(outputs, labels)
+  loss.backward()
+  optimizer.step()
+
 每个 epoch：
-  对每个 batch：
-    outputs = model(images)     # 前向：预测
-    loss = loss_fn(outputs, labels)  # 比较预测与真相
-    loss.backward()             # 反向：算梯度
-    optimizer.step()            # 沿梯度更新权重
-  scheduler.step()              # 学习率退火
-  在验证集上评测 → 记录指标 → 更新 best.pt
-  若 N 个 epoch 没进步 → early stop
+  在验证集上计算指标
+  更新 best.pt 与 last.pt
+  记录 metrics.csv
 ```
 
-1. **warmup + cosine**：学习率从 1% 线性爬升到目标值，再按余弦退火到接近 0。
-   为什么？开局权重离最优远，大学习率会"冲过头"；后期小学习率让权重稳定落位。
-2. **MixUp**：把两张图按 λ 混合（标签也混合）—— 模型被迫学特征而非死记，
-   典型的正则化。**注意**：MixUp 后训练 loss 会偏高，但验证集反而更好 ——
-   别被训练 loss 骗了。
-3. **EMA**：维护一个"影子权重"（过去步骤权重的指数平均），验证和保存用影子、
-   训练用快权重。影子更平滑、泛化更好。**但是**：decay 的时间常数是
-   1/(1−decay) 步，因此高 decay 需要较长训练才能让影子权重跟上。
-4. **checkpoint 自包含**：best.pt 里存的不只是权重，还有配置、类别表、优化器
-   状态 —— 所以断点续训（`--resume`）和复现实验才可能。
+正式实现位于 `src/garbage_classifier/training/trainer.py`。先看 `_run_epoch` 中标记的
+基础循环，再看 `fit` 如何加入验证、checkpoint、学习率调度和早停。最小配置关闭
+MixUp、EMA 和 AMP，第一次阅读时不会被可选分支打断。
 
-**验证题**：为什么 MixUp 下训练 loss 偏高是"正常且健康"的？打开两条曲线的
-train_loss 和 val_loss 对比说明。
+训练 loss 与验证指标回答不同问题。训练 loss 降低说明模型正在适应训练数据；验证
+指标停滞或变差则可能意味着过拟合、数据问题或配置不合适。
 
----
+## 怎样判断模型表现
 
-## 阶段 5：评测（约 1 小时）
+使用最佳 checkpoint 评测留出的测试集：
 
-**目标**：读懂一张评测报告，能解释每个数字。
-
-**读什么**：
-- `src/garbage_classifier/evaluation/metrics.py`（每个指标怎么算）
-- `docs/experiments.zh-CN.md` 实验 1（完整工作流）
-
-**动手**：
 ```bash
-garbage evaluate --checkpoint artifacts/learn-b/best.pt --plot
-# 生成 classification report + confusion_matrix.png + predictions.csv + errors.csv
+garbage evaluate \
+  --checkpoint artifacts/first-minimal-run/best.pt \
+  --plot
 ```
 
-**核心知识点**：
-1. **accuracy 的局限**：256 张里 60 张 paper，全猜 paper 也有 23.4%。
-2. **balanced_accuracy**：各类 recall 的平均 —— 每类平等对待。
-3. **precision / recall / F1**（以 trash 为例）：
-   - precision = 预测为 trash 里真的有多少是 trash（"猜的准不准"）
-   - recall = 真的 trash 里被找出来多少（"漏没漏"）
-   - F1 = 两者的调和平均
-   - 重平衡策略通常在 precision 与 recall 之间取舍，两者都要测量
-4. **混淆矩阵**：行=真实、列=预测。对角线越亮越好；看"垃圾"常被错成哪类，
-   就是错误分析的第一步。
+评测会输出 accuracy、balanced accuracy、macro F1、每类 precision/recall/F1、
+混淆矩阵、`predictions.csv` 和 `errors.csv`。
 
-**验证题**：errors.csv 里挑 3 个错误样本，用阶段 6 的 Grad-CAM 看模型为什么错。
+先比较 accuracy 与 balanced accuracy。如果两者差距较大，模型可能忽略了样本较少的
+类别。再看每类 recall 和混淆矩阵，确认错误集中在哪里。最后打开 `errors.csv`，判断
+问题更像标签、图片质量、类别边界还是模型能力。
 
----
+指标计算在 `src/garbage_classifier/evaluation/metrics.py`，更详细的解释在
+[原理说明](how-it-works.zh-CN.md)。
 
-## 阶段 6：推理与解释（约 45 分钟）
+## 怎样使用 checkpoint
 
-**目标**：理解"推理只看 checkpoint"和 Grad-CAM。
+checkpoint 不只保存权重，还包含模型名称、类别表、预处理参数和训练配置。因此推理时
+只需提供 checkpoint 与图片：
 
-**读什么**：
-- `src/garbage_classifier/inference/predictor.py`（Predictor 如何从 checkpoint 恢复一切）
-- `src/garbage_classifier/inference/gradcam.py` 顶部注释（Grad-CAM 原理）
-
-**动手**：
 ```bash
-garbage predict --checkpoint artifacts/learn-b/best.pt --image data/raw/paper/paper1.jpg --top-k 3
-garbage predict --checkpoint artifacts/learn-b/best.pt --image data/raw/paper/paper1.jpg --top-k 3 --tta
-garbage explain --checkpoint artifacts/learn-b/best.pt --image data/raw/paper/paper1.jpg --output gradcam.png
+garbage predict \
+  --checkpoint artifacts/first-minimal-run/best.pt \
+  --image data/raw/paper/paper1.jpg \
+  --top-k 3
 ```
 
-**核心知识点**：
-1. **checkpoint 自包含的威力**：`predict` 不需要你告诉它类别名、均值方差、模型名
-   —— 全部从 best.pt 恢复。训练/推理配置永不漂移。
-2. **TTA（测试时增强）**：推理时把图水平翻转再推一次，两次 softmax 取平均。
-   实验 5 用来衡量额外一次推理是否值得。
-3. **Grad-CAM**：用最后一层卷积的特征图 × 类别得分的梯度，加权得到"模型看哪里"
-   的热力图。模型分错时，看它看的是不是错误区域 —— 错误分析第一利器。
+预测错误时可以生成 Grad-CAM，看看模型关注了哪里：
 
-**验证题**：`--tta` 前后 top-1 概率有什么变化？解释为什么平均会改变置信度。
-
----
-
-## 阶段 7：实验与可复现（约 1 小时）
-
-**目标**：把"做实验"变成纪律，理解可复现实验平台的本质。
-
-**读什么**：
-- `docs/experiments.zh-CN.md` 全文（重点看对比方法）
-- `src/garbage_classifier/training/checkpoint.py`（checkpoint 里存了什么）
-
-**动手（完成一个自己的小实验矩阵）**：
 ```bash
-# 你的第一个消融：lr 对比
-garbage train --config configs/resnet50.yaml --set train.lr 1e-3 --set train.epochs 10 \
-  --set data.num_workers 0 --set run_name myexp-lr1e3
-garbage train --config configs/resnet50.yaml --set train.lr 1e-4 --set train.epochs 10 \
-  --set data.num_workers 0 --set run_name myexp-lr1e4
-python scripts/plot_metrics.py artifacts/myexp-lr1e3/metrics.csv
-python scripts/plot_metrics.py artifacts/myexp-lr1e4/metrics.csv
+garbage explain \
+  --checkpoint artifacts/first-minimal-run/best.pt \
+  --image data/raw/paper/paper1.jpg \
+  --output artifacts/first-minimal-run/gradcam.png
 ```
 
-**核心知识点（学习项目的"职业习惯"）**：
-1. **每次实验 = 一个 artifact 目录**：`config.yaml`（完整配置）+ `metrics.csv`
-   （逐 epoch 指标）+ `best.pt`（可复现权重）。**config.yaml 是唯一真相**，
-   它比依赖记忆描述实验更可靠。
-2. **一次只改一个变量**：对比实验必须保证"只有自变量不同"，否则结论无效。
-3. **先记录，再下结论**：由结果而不是直觉判断技术是否改善目标指标。
+Grad-CAM 只能提供线索，不能证明模型的因果理由。热区落在背景或无关物体上时，才值得
+进一步检查数据与增强方式。
 
-**验证题**：写完 `docs/experiments.zh-CN.md` 风格的实验记录（可以就用 myexp 两个 run），
-包含：命令、表格、一个"学习要点"。
+## 做几组有意义的对比
 
----
+完整流程跑通后，可以选择一个问题做短对比。每次只改变一个因素，其他配置、manifest
+和随机种子保持一致。
 
-## 毕业项目（可选，约 2–3 小时）
+例如比较预训练与从零训练：
 
-用学到的全部技能完成一个完整闭环：
+```bash
+garbage train --config configs/imbalance_none.yaml \
+  --set model.name mobilenetv3_small_100 \
+  --set model.pretrained true \
+  --set train.epochs 15 \
+  --set run_name compare-pretrained
 
-1. 换一个新模型（`convnext_tiny`）跑一个完整训练（20+ epoch）
-2. 对比它与 resnet50 的精度/速度
-3. 用 Grad-CAM 分析它最容易错的两个类别
-4. 导出 ONNX 并用 `garbage demo` 做一个可交互的演示
-5. 把过程和结论写成 `docs/my-experiment.md`
-
----
-
-## 学习地图（所有文档和代码的索引）
-
-```
-开始 → README.zh-CN.md（快速开始）
-  ↓
-阶段 0-2 → docs/how-it-works.zh-CN.md（数据流）＋ data/ 目录代码
-  ↓
-阶段 3-4 → models/registry.py ＋ training/trainer.py ＋ training/mixup.py ＋ training/ema.py
-  ↓
-阶段 5-6 → evaluation/metrics.py ＋ inference/predictor.py ＋ inference/gradcam.py
-  ↓
-阶段 7 → docs/experiments.zh-CN.md（实验方法与记录模板）＋ training/checkpoint.py
-  ↓
-毕业项目 → 用 garbage 命令自由组合，并完成[推理与部署教程](tutorial/05-inference-deployment.zh-CN.md)
+garbage train --config configs/imbalance_none.yaml \
+  --set model.name mobilenetv3_small_100 \
+  --set model.pretrained false \
+  --set train.epochs 15 \
+  --set run_name compare-scratch
 ```
 
-**记住**：读代码时，先读文件顶部的注释（每个学习模块都写了"为什么"）；
-跑实验时，先 `--dry-run`；下结论时，先看 `config.yaml`。
+先猜测哪一组收敛更快，再比较最佳验证集 balanced accuracy 和 macro F1。结果只说明
+这份数据、这套配置和这个运行环境下发生了什么，不应直接推广到所有任务。
+
+更多可运行的对比见[实验说明](experiments.zh-CN.md)。训练曲线异常时可以查阅
+[训练策略选择](tutorial/04-training.zh-CN.md)。
+
+## 接下来可以怎么做
+
+- 想看清代码之间怎样连接，打开[代码导览](code-tour.zh-CN.md)。
+- 想进一步理解配置覆盖关系，打开[配置流说明](configuration-flow.zh-CN.md)。
+- 想尝试 TTA、Grad-CAM、ONNX 或 Gradio，查看
+  [推理与部署](tutorial/05-inference-deployment.zh-CN.md)。
+- 想了解每个配置字段，查看[配置参数参考](config-reference.zh-CN.md)。
+
+不必一次读完所有内容。遇到具体问题时回到对应部分，通常比顺序通读整个源码更有效。

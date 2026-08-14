@@ -82,7 +82,7 @@ garbage train --config configs/resnet50.yaml --set train.epochs 30
 
 - **OOM**：batch size ÷ 2，**学习率 ÷ 2**（§2.2 法则）。
 - batch 太小（<16）梯度噪声大；太大（>128）对小数据集收益递减。
-- 本项目默认 32，对练习足够。
+- 本项目默认 32，适合先跑通基础流程。
 
 ## 4. epochs：训练多久
 
@@ -175,26 +175,11 @@ MixUp 生成的样本本身"更难"，但它让模型学特征而非死记。
        → 完整训练 + 早停 → evaluate 测试集 → 记录到 docs/experiments.zh-CN.md
 ```
 
-## 9. 练习
+## 9. 先比较一个变化
 
-```bash
-# 练习 1：lr 扫描（§2.3 的命令），记录四条 val_loss 曲线
-# 练习 2：为每类复制最多 8 张图，生成真实的小数据 manifest 后体验过拟合
-rm -rf /tmp/garbage-overfit
-for class_dir in data/raw/*; do
-  class=$(basename "$class_dir"); mkdir -p "/tmp/garbage-overfit/$class"
-  find "$class_dir" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) \
-    | head -8 | xargs -I{} cp "{}" "/tmp/garbage-overfit/$class/"
-done
-garbage prepare-data --set data.data_dir /tmp/garbage-overfit \
-  --set data.manifest_dir /tmp/garbage-overfit-manifests
-garbage train --config configs/imbalance_none.yaml --set model.name mobilenetv3_small_100 \
-  --set data.data_dir /tmp/garbage-overfit \
-  --set data.manifest_dir /tmp/garbage-overfit-manifests \
-  --set train.epochs 30 --set data.num_workers 0 --set train.mixup_alpha 0 \
-  --set run_name overfit-demo
-# 练习 3：打开 mixup 0.2 重跑，对比两条 val 曲线 —— 用图片说明"正则化"的含义
-```
+不必一次尝试所有策略。可以从 §2.3 的学习率对比开始，保持模型、manifest、epoch 和
+随机种子不变，只比较两个相邻量级。先看验证 loss 是否稳定下降，再比较 balanced
+accuracy 和 macro F1。
 
-**学完本系列**：你现在能回答"数据→模型→训练→评测"每个环节的选择题。回到
-[学习路线](../learning-path.zh-CN.md) 的阶段 7，完成你自己的实验记录和毕业项目。
+结果异常时，回到 §6 的现象表检查最可能的原因；准备做更严格的单变量比较时，查看
+[实验说明](../experiments.zh-CN.md)。

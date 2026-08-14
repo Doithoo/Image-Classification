@@ -131,6 +131,22 @@ def test_readme_images_resolve():
     assert not broken, "broken README images:\n" + "\n".join(broken)
 
 
+def test_chinese_learning_docs_avoid_classroom_language():
+    documents = [
+        ROOT / "README.zh-CN.md",
+        ROOT / "docs/learning-path.zh-CN.md",
+        *sorted((ROOT / "docs/tutorial").glob("*.zh-CN.md")),
+    ]
+    forbidden = ("我们", "毕业项目", "课程表", "通关", "闯关")
+    findings = []
+    for document in documents:
+        text = document.read_text()
+        for phrase in forbidden:
+            if phrase in text:
+                findings.append(f"{document.relative_to(ROOT)}: {phrase}")
+    assert not findings, "classroom-style language found:\n" + "\n".join(findings)
+
+
 def test_code_directories_explain_their_audience_and_role():
     for directory in ("scripts", "src", "tests"):
         for name in ("README.md", "README.zh-CN.md"):
