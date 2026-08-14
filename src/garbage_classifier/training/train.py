@@ -8,6 +8,7 @@ block is optional and can be skipped when reading ``learning_minimal.yaml``.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 import torch
@@ -17,6 +18,7 @@ from ..data import ImageClassificationDataset, collate_fn, manifest_classes
 from ..data.transforms import build_eval_transform, build_train_transform
 from ..models.registry import create_model, get_num_parameters
 from ..utils import git_revision, pick_device, set_all_seeds
+from .metadata import build_run_metadata, write_run_metadata
 from .trainer import Trainer
 from .weights import build_weighted_sampler, compute_class_weights
 
@@ -116,7 +118,16 @@ def train_from_config(
         return run_dir
 
     trainer = Trainer(model, cfg, device, class_names, run_dir, class_weights=class_weights)
+    started_at = datetime.now(timezone.utc)
     result = trainer.fit(train_loader, valid_loader, resume_from=resume)
+    finished_at = datetime.now(timezone.utc)
+    metadata = build_run_metadata(
+        device,
+        started_at=started_at,
+        finished_at=finished_at,
+        elapsed_seconds=result["elapsed_min"] * 60,
+    )
+    write_run_metadata(run_dir / "run.yaml", metadata)
     logger.info(
         "done: epochs=%d best_%s=%.4f elapsed=%.1fmin  (best.pt in %s)",
         result["epochs_run"],
