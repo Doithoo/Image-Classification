@@ -106,6 +106,13 @@ the checkpoint. You do not need to repeat training settings by hand.
 - The detailed hands-on tutorials are currently available in
   [Chinese](docs/tutorial/README.zh-CN.md).
 
+## Use another dataset
+
+The same pipeline works with any image dataset arranged as one folder per
+class. The [own-data guide](docs/using-your-data.md) shows how to preview it,
+create isolated manifests, run a short baseline, and inspect errors without
+overwriting the example data split.
+
 ## What the project covers
 
 The core path includes:

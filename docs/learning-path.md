@@ -225,6 +225,8 @@ More runnable comparisons are in [Experiments](experiments.md). The Chinese
 
 ## Where to go next
 
+- Apply the workflow to a folder-based dataset with
+  [Use Your Own Image Dataset](using-your-data.md).
 - Use the [Code Tour](code-tour.md) to follow boundaries between modules.
 - Read [Configuration Flow](configuration-flow.md) to understand overrides.
 - Explore TTA, Grad-CAM, ONNX, or Gradio in the Chinese

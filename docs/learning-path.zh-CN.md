@@ -210,6 +210,7 @@ garbage train --config configs/imbalance_none.yaml \
 
 ## 接下来可以怎么做
 
+- 想换成另一个按文件夹分类的数据集，查看[自己的数据指南](using-your-data.zh-CN.md)。
 - 想看清代码之间怎样连接，打开[代码导览](code-tour.zh-CN.md)。
 - 想进一步理解配置覆盖关系，打开[配置流说明](configuration-flow.zh-CN.md)。
 - 想尝试 TTA、Grad-CAM、ONNX 或 Gradio，查看

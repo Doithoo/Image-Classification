@@ -147,6 +147,23 @@ def test_chinese_learning_docs_avoid_classroom_language():
     assert not findings, "classroom-style language found:\n" + "\n".join(findings)
 
 
+def test_own_data_guides_use_isolated_manifests_and_the_minimal_config():
+    for name in ("using-your-data.md", "using-your-data.zh-CN.md"):
+        guide = (ROOT / "docs" / name).read_text()
+        assert "my-dataset" in guide
+        assert "data/my-manifests" in guide
+        assert "configs/learning_minimal.yaml" in guide
+        assert "--strict" in guide
+        assert "model.num_classes" in guide
+
+    assert "docs/using-your-data.md" in (ROOT / "README.md").read_text()
+    assert "docs/using-your-data.zh-CN.md" in (ROOT / "README.zh-CN.md").read_text()
+    assert "using-your-data.md" in (ROOT / "docs/learning-path.md").read_text()
+    assert "using-your-data.zh-CN.md" in (ROOT / "docs/learning-path.zh-CN.md").read_text()
+    assert "../using-your-data.zh-CN.md" in (ROOT / "docs/tutorial/README.zh-CN.md").read_text()
+    assert "../using-your-data.zh-CN.md" in (ROOT / "docs/tutorial/02-data.zh-CN.md").read_text()
+
+
 def test_code_directories_explain_their_audience_and_role():
     for directory in ("scripts", "src", "tests"):
         for name in ("README.md", "README.zh-CN.md"):

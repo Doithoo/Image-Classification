@@ -17,3 +17,5 @@
 
 遇到问题时，先回到最近生成的 `config.yaml`、`metrics.csv` 或 `errors.csv`。带着具体
 现象查阅对应教程，通常比顺序读完所有细节更有效。
+
+准备替换示例数据时，查看[换成自己的图片数据](../using-your-data.zh-CN.md)。

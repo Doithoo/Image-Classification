@@ -96,6 +96,12 @@ garbage predict --checkpoint artifacts/first-run/best.pt \
 - 想比较训练策略时，查看[实验说明](docs/experiments.zh-CN.md)，每次只改变一个因素。
 - 需要更细的操作说明时，查看[实操教程](docs/tutorial/README.zh-CN.md)。
 
+## 换成自己的数据
+
+只要每个类别使用一个文件夹，同一套流程就可以处理其他图片数据。
+[自己的数据指南](docs/using-your-data.zh-CN.md)说明了怎样预览图片、使用独立 manifest、
+运行短基线并查看错误，同时避免覆盖示例数据的固定切分。
+
 ## 项目覆盖的内容
 
 核心路径包括：
