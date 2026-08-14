@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue)](pyproject.toml)
-[![CI](https://github.com/Doithoo/Image-Classification/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![CI](https://github.com/Doithoo/pytorch-image-classification-lab/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 
 **Read this in: [简体中文](README.zh-CN.md)**
 

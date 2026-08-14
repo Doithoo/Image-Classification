@@ -120,6 +120,19 @@ def test_root_readmes_present_the_learning_project_identity():
     assert "8–12 小时" in chinese
 
 
+def test_tracked_user_links_use_the_current_repository_name():
+    old_slug = "Doithoo/" + "Image-Classification"
+    documents = [
+        ROOT / "README.md",
+        ROOT / "README.zh-CN.md",
+        ROOT / "scripts/download_data.py",
+        ROOT / "docs/tutorial/01-environment.zh-CN.md",
+    ]
+
+    findings = [str(path.relative_to(ROOT)) for path in documents if old_slug in path.read_text()]
+    assert not findings, f"stale repository links found: {findings}"
+
+
 def test_readme_images_resolve():
     image_pattern = re.compile(r"!\[[^]]*\]\(([^)]+)\)")
     broken = []

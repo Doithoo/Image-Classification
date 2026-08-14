@@ -19,7 +19,9 @@ import shutil
 import urllib.request
 from pathlib import Path
 
-DATASET_URL = "https://github.com/Doithoo/Image-Classification/releases/download/v1.0/garbage-classification.tar.gz"
+DATASET_URL = (
+    "https://github.com/Doithoo/pytorch-image-classification-lab/releases/download/v1.0/garbage-classification.tar.gz"
+)
 EXPECTED_SHA256 = "be0b99fc61360cf267f8be4e0c10d1d2dc23f141b6fbeac20122468bb81ea1b6"
 DATASET_PATCH_VERSION = "v1.0-audit.1"
 DATASET_AUDIT_REMOVALS = {

@@ -26,7 +26,7 @@
 python --version
 
 # 2. 克隆项目
-git clone https://github.com/Doithoo/Image-Classification.git
+git clone https://github.com/Doithoo/pytorch-image-classification-lab.git
 cd Image-Classification
 ```
 
@@ -156,7 +156,7 @@ Kaggle 免费提供 T4 GPU（约 16GB 显存），每周约 30 小时配额。�
 
 **方式 A（推荐，用 git）**：
 ```python
-!git clone https://github.com/Doithoo/Image-Classification.git
+!git clone https://github.com/Doithoo/pytorch-image-classification-lab.git
 %cd Image-Classification
 !pip install -q -e ".[dev]"
 ```
