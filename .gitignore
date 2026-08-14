@@ -20,6 +20,7 @@ venv/
 .ruff_cache/
 .coverage
 htmlcov/
+.worktrees/
 
 # ---- 训练产物 ----
 **/save_weight
