@@ -25,7 +25,7 @@ GARBAGE_CLASSES = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
 class DataConfig:
     """Dataset layout and preprocessing."""
 
-    data_dir: str = "data"  # root that contains the class folders (raw split by class)
+    data_dir: str = "data/raw"  # root that contains the class folders (raw split by class)
     manifest_dir: str = "data/manifests"  # where generated CSV manifests live
     classes: list[str] = field(default_factory=lambda: list(GARBAGE_CLASSES))
     image_size: int = 224

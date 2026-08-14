@@ -10,6 +10,7 @@ def test_defaults():
     cfg = load_config()
     assert cfg.model.name == "resnet50"
     assert cfg.train.epochs == 60
+    assert cfg.data.data_dir == "data/raw"
     assert cfg.data.classes == ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
 
 

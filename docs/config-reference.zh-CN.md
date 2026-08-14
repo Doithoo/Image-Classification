@@ -7,7 +7,7 @@ YAML 和命令行可以覆盖它们。
 
 | 参数 | 默认值 | 含义与建议 |
 |---|---|---|
-| `data.data_dir` | `data` | `prepare-data` 扫描的类别目录根路径；下载数据通常在 `data/raw`，需显式传入。 |
+| `data.data_dir` | `data/raw` | `prepare-data` 和评测使用的类别目录根路径；换数据集时再覆盖。 |
 | `data.manifest_dir` | `data/manifests` | 切分 CSV 与 `source.yaml` 的位置；训练从这里读取。 |
 | `data.classes` | 六类垃圾名称 | 期望类别名；训练时以生成的 manifest 元数据为准。 |
 | `data.image_size` | `224` | 最终方形输入尺寸；越大越耗内存和算力，也影响 ONNX 输入。 |

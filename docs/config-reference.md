@@ -9,7 +9,7 @@ below come from `config.py`; YAML and CLI overrides may replace them.
 
 | Key | Default | Meaning and guidance |
 |---|---|---|
-| `data.data_dir` | `data` | Class-folder root used by `prepare-data`; the download command commonly writes `data/raw`, so pass that explicitly. |
+| `data.data_dir` | `data/raw` | Class-folder root used by `prepare-data` and evaluation; override it for another dataset. |
 | `data.manifest_dir` | `data/manifests` | Location of split CSVs and `source.yaml`. Training reads from here. |
 | `data.classes` | six garbage classes | Expected class names. Generated manifest metadata is authoritative for training. |
 | `data.image_size` | `224` | Final square input. Larger values cost more memory/compute and affect ONNX shape. |
