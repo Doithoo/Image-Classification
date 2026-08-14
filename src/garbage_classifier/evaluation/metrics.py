@@ -54,7 +54,7 @@ def evaluate_predictions(preds: np.ndarray, labels: np.ndarray, num_classes: int
     f1 = 2 * precision * recall / np.maximum(precision + recall, eps)
 
     total = matrix.sum()
-    accuracy = tp.sum() / total if total else 0.0
+    accuracy = float(tp.sum() / total) if total else 0.0
     balanced_accuracy = float(recall.mean())
 
     macro_f1 = float(f1.mean())

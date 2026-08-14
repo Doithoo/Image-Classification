@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -93,6 +94,18 @@ def evaluate_checkpoint(
         for e in errors:
             f.write(f"{e['path']},{class_names[e['true']]},{class_names[e['pred']]}\n")
     logger.info("wrote %s and %s", pred_csv, err_csv)
+
+    report = {
+        "schema_version": 1,
+        "split": split,
+        "tta": tta,
+        "checkpoint": Path(checkpoint).name,
+        "class_names": class_names,
+        "metrics": metrics,
+    }
+    report_path = out_dir / "evaluation.json"
+    report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
+    logger.info("wrote %s", report_path)
 
     if plot:
         _save_confusion_plot(metrics["confusion"], class_names, out_dir / "confusion_matrix.png")

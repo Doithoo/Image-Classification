@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import torch
@@ -75,7 +76,15 @@ def test_evaluate_uses_checkpoint_model_and_preprocessing_with_cli_runtime_overr
     monkeypatch.setattr("garbage_classifier.evaluation.evaluate.torch.utils.data.DataLoader", FakeLoader)
     monkeypatch.setattr("garbage_classifier.inference.predictor.Predictor", FakePredictor)
 
-    evaluate_checkpoint(checkpoint, cli_cfg, output_dir=tmp_path / "output")
+    metrics = evaluate_checkpoint(checkpoint, cli_cfg, output_dir=tmp_path / "output")
+
+    report = json.loads((tmp_path / "output" / "evaluation.json").read_text())
+    assert report["schema_version"] == 1
+    assert report["split"] == "test"
+    assert report["tta"] is False
+    assert report["checkpoint"] == "model.pt"
+    assert report["class_names"] == ["a", "b"]
+    assert report["metrics"] == metrics
 
     data_cfg = captured["data_cfg"]
     assert (data_cfg.image_size, data_cfg.resize_size) == (19, 23)
