@@ -110,6 +110,27 @@ def test_root_readmes_offer_one_beginner_workflow():
         assert "garbage show-config" in readme
 
 
+def test_root_readmes_present_the_learning_project_identity():
+    english = (ROOT / "README.md").read_text()
+    chinese = (ROOT / "README.zh-CN.md").read_text()
+
+    assert english.startswith("# PyTorch Image Classification Lab\n")
+    assert chinese.startswith("# PyTorch 图像分类实践\n")
+    assert "8–12 hours" in english
+    assert "8–12 小时" in chinese
+
+
+def test_readme_images_resolve():
+    image_pattern = re.compile(r"!\[[^]]*\]\(([^)]+)\)")
+    broken = []
+    for document in (ROOT / "README.md", ROOT / "README.zh-CN.md"):
+        for raw_target in image_pattern.findall(document.read_text()):
+            target = raw_target.strip().split(maxsplit=1)[0].strip("<>").split("#", 1)[0]
+            if target and "://" not in target and not (document.parent / target).is_file():
+                broken.append(f"{document.name} -> {raw_target}")
+    assert not broken, "broken README images:\n" + "\n".join(broken)
+
+
 def test_code_directories_explain_their_audience_and_role():
     for directory in ("scripts", "src", "tests"):
         for name in ("README.md", "README.zh-CN.md"):
