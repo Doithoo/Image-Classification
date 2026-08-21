@@ -34,6 +34,7 @@ def test_dev_tools_ci_and_distribution_manifest_cover_maintainer_contract():
     for command in ("uv sync --locked", "ruff check", "mypy", "pytest -W error::DeprecationWarning", "uv build"):
         assert command in workflow
     assert "permissions:" in workflow and "contents: read" in workflow
+    assert "if: matrix.python-version == '3.10'" in workflow
     assert "actions/checkout@3d3c42e5" in workflow
     manifest = (ROOT / "MANIFEST.in").read_text()
     for directory in ("configs", "docs", "examples", "scripts", "tests"):
