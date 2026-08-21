@@ -61,7 +61,10 @@ class EMA:
 
     def load_state_dict(self, state: dict[str, object]) -> None:
         """Restore EMA decay and shadow tensors."""
-        self.decay = float(state.get("decay", self.decay))
+        decay = state.get("decay", self.decay)
+        if isinstance(decay, bool) or not isinstance(decay, int | float):
+            raise ValueError("EMA decay must be numeric")
+        self.decay = float(decay)
         shadow = state.get("shadow", state)
         if not isinstance(shadow, dict):
             raise ValueError("EMA state must contain a shadow mapping")

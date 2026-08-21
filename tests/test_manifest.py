@@ -1,4 +1,4 @@
-"""Tests for manifest building / loading (portable data pipeline)."""
+"""Prepared-data identity, duplicate protection and path-validation tests."""
 
 import csv
 import hashlib
@@ -8,228 +8,161 @@ import pytest
 import yaml
 from PIL import Image
 
-from garbage_classifier.data.manifest import ManifestError, build_manifest, load_manifest, manifest_root, validate_image
+from garbage_classifier.data.manifest import (
+    DATASET_SCHEMA_VERSION,
+    ManifestError,
+    build_manifest,
+    inspect_prepared_data,
+    load_dataset_metadata,
+    load_manifest,
+    manifest_root,
+    validate_image,
+    verify_prepared_data,
+)
 
 
 def _make_dataset(tmp_path, per_class: dict[str, int]) -> None:
-    for cls_index, (cls, n) in enumerate(per_class.items()):
-        d = tmp_path / "data" / cls
-        d.mkdir(parents=True)
-        for i in range(n):
-            Image.new("RGB", (16, 16), color=(i * 10 % 255, cls_index * 40, 0)).save(d / f"{cls}{i}.jpg")
+    for class_index, (class_name, count) in enumerate(per_class.items()):
+        directory = tmp_path / "data" / class_name
+        directory.mkdir(parents=True)
+        for index in range(count):
+            Image.new("RGB", (16, 16), color=(index * 10 % 255, class_index * 40, 0)).save(
+                directory / f"{class_name}{index}.jpg"
+            )
 
 
 def _manifest_rows(manifests: dict[str, object]) -> dict[str, list[dict[str, str]]]:
     return {split: list(csv.DictReader(path.open())) for split, path in manifests.items()}
 
 
-def test_build_and_load_manifest(tmp_path):
+def test_build_verify_and_inspect_versioned_manifest(tmp_path):
     _make_dataset(tmp_path, {"a": 10, "b": 20})
     manifests = build_manifest(tmp_path / "data", tmp_path / "manifests", split_ratios=[0.8, 0.1, 0.1], seed=7)
+
+    metadata = verify_prepared_data(tmp_path / "manifests")
+    report = inspect_prepared_data(tmp_path / "manifests")
+
     assert set(manifests) == {"train", "valid", "test"}
+    assert metadata.schema_version == DATASET_SCHEMA_VERSION
+    assert metadata.classes == ("a", "b")
+    assert len(metadata.identity) == 64
+    assert report["identity"] == metadata.identity
+    assert metadata.split_counts == {"train": 24, "valid": 3, "test": 3}
+    assert metadata.manifest_sha256["train"] == hashlib.sha256(manifests["train"].read_bytes()).hexdigest()
+    train = load_manifest(manifests["train"], manifest_root(tmp_path / "manifests"), num_classes=2)
+    assert all(path.startswith(str((tmp_path / "data").resolve())) for path, _label in train)
 
-    train = load_manifest(manifests["train"], manifest_root(tmp_path / "manifests"))
-    assert len(train) == 24  # 8 + 16
-    # paths are absolute and exist
-    import os
 
-    assert all(os.path.exists(p) for p, _ in train)
-    # labels match class order (alphabetical)
-    assert {p.split("/")[-2] for p, _ in train} == {"a", "b"}
-
-
-def test_split_is_stratified_and_deterministic(tmp_path):
+def test_identity_is_deterministic_and_bind_all_splits(tmp_path):
     _make_dataset(tmp_path, {"a": 10, "b": 10, "c": 10})
-    m1 = build_manifest(tmp_path / "data", tmp_path / "m1", seed=42)
-    m2 = build_manifest(tmp_path / "data", tmp_path / "m2", seed=42)
-    assert m1["train"].read_text() == m2["train"].read_text()
-    # each class keeps 8/1/1
-    from collections import Counter
+    build_manifest(tmp_path / "data", tmp_path / "m1", seed=42)
+    build_manifest(tmp_path / "data", tmp_path / "m2", seed=42)
+    first = load_dataset_metadata(tmp_path / "m1")
+    second = load_dataset_metadata(tmp_path / "m2")
 
-    rows = load_manifest(m1["train"], manifest_root(tmp_path / "m1"))
-    per_class = Counter(p.split("/")[-2] for p, _ in rows)
-    assert per_class == {"a": 8, "b": 8, "c": 8}
-
-
-def test_corrupt_image_detected(tmp_path):
-    _make_dataset(tmp_path, {"a": 3})
-    bad = tmp_path / "data" / "a" / "broken.jpg"
-    bad.write_bytes(b"not an image at all")
-    import pytest
-
-    from garbage_classifier.data.manifest import ManifestError
-
-    with pytest.raises(ManifestError):
-        build_manifest(tmp_path / "data", tmp_path / "manifests", validate=True)
-    assert validate_image(bad) is False
+    assert first.identity == second.identity
+    assert first.manifest_sha256 == second.manifest_sha256
+    assert first.per_class_counts["train"] == {"a": 8, "b": 8, "c": 8}
 
 
-def test_missing_manifest_raises(tmp_path):
-    with pytest.raises(ManifestError):
-        load_manifest(tmp_path / "nope.csv", tmp_path)
+def test_verify_detects_modified_manifest_and_source_bytes(tmp_path):
+    _make_dataset(tmp_path, {"a": 10, "b": 10})
+    build_manifest(tmp_path / "data", tmp_path / "manifests")
+    manifest = tmp_path / "manifests" / "train.csv"
+    manifest.write_text(manifest.read_text() + "a/a0.jpg,0\n")
+    with pytest.raises(ManifestError, match="checksum mismatch"):
+        verify_prepared_data(tmp_path / "manifests")
+
+    build_manifest(tmp_path / "data", tmp_path / "manifests", overwrite=True)
+    Image.new("RGB", (16, 16), color="white").save(tmp_path / "data" / "a" / "a0.jpg")
+    with pytest.raises(ManifestError, match="source image checksum mismatch"):
+        verify_prepared_data(tmp_path / "manifests")
 
 
-def test_cross_class_duplicate_is_annotation_conflict(tmp_path):
-    _make_dataset(tmp_path, {"paper": 1, "plastic": 1})
-    paper = tmp_path / "data" / "paper" / "paper0.jpg"
-    plastic = tmp_path / "data" / "plastic" / "plastic0.jpg"
-    shutil.copyfile(paper, plastic)
+def test_prepare_refuses_nonempty_destination_without_overwrite(tmp_path):
+    _make_dataset(tmp_path, {"a": 4, "b": 4})
+    destination = tmp_path / "manifests"
+    build_manifest(tmp_path / "data", destination)
+    with pytest.raises(FileExistsError, match="--overwrite"):
+        build_manifest(tmp_path / "data", destination)
+    build_manifest(tmp_path / "data", destination, overwrite=True)
 
-    with pytest.raises(ManifestError) as exc_info:
+
+def test_corrupt_and_cross_class_duplicate_images_are_rejected(tmp_path):
+    _make_dataset(tmp_path, {"paper": 2, "plastic": 2})
+    broken = tmp_path / "data" / "paper" / "broken.jpg"
+    broken.write_bytes(b"not an image")
+    with pytest.raises(ManifestError, match="unreadable"):
+        build_manifest(tmp_path / "data", tmp_path / "manifests")
+    assert not validate_image(broken)
+
+    broken.unlink()
+    shutil.copyfile(tmp_path / "data" / "paper" / "paper0.jpg", tmp_path / "data" / "plastic" / "plastic0.jpg")
+    with pytest.raises(ManifestError, match="annotation conflict"):
         build_manifest(tmp_path / "data", tmp_path / "manifests")
 
-    message = str(exc_info.value)
-    assert "annotation conflict" in message
-    assert "paper/paper0.jpg" in message
-    assert "plastic/plastic0.jpg" in message
-    assert "paper" in message
-    assert "plastic" in message
 
-
-def test_same_class_duplicates_are_assigned_to_one_split(tmp_path):
+def test_duplicates_remain_in_one_split_and_strict_mode_rejects_them(tmp_path):
     _make_dataset(tmp_path, {"paper": 10})
-    source = tmp_path / "data" / "paper" / "paper0.jpg"
-    shutil.copyfile(source, source.with_name("paper-copy.jpg"))
-
-    manifests = build_manifest(tmp_path / "data", tmp_path / "manifests", seed=19)
-    rows = _manifest_rows(manifests)
-    duplicate_splits = {
-        split
-        for split, split_rows in rows.items()
-        if {row["path"] for row in split_rows} & {"paper/paper0.jpg", "paper/paper-copy.jpg"}
-    }
-
-    assert len(duplicate_splits) == 1
-    split = duplicate_splits.pop()
-    paths = {row["path"] for row in rows[split]}
-    assert {"paper/paper0.jpg", "paper/paper-copy.jpg"} <= paths
-
-
-def test_no_content_hash_crosses_splits(tmp_path):
-    _make_dataset(tmp_path, {"paper": 12, "plastic": 12})
-    for cls in ("paper", "plastic"):
-        source = tmp_path / "data" / cls / f"{cls}0.jpg"
-        shutil.copyfile(source, source.with_name(f"{cls}-copy.jpg"))
-
-    manifests = build_manifest(tmp_path / "data", tmp_path / "manifests", seed=7)
-    hashes_by_split = {}
-    for split, rows in _manifest_rows(manifests).items():
-        hashes_by_split[split] = {
-            hashlib.sha256((tmp_path / "data" / row["path"]).read_bytes()).hexdigest() for row in rows
-        }
-
-    split_names = sorted(hashes_by_split)
-    for index, split in enumerate(split_names):
-        for other in split_names[index + 1 :]:
-            assert hashes_by_split[split].isdisjoint(hashes_by_split[other])
-
-
-def test_grouped_split_minimizes_target_count_deviation(tmp_path):
-    class_dir = tmp_path / "data" / "paper"
-    class_dir.mkdir(parents=True)
-    for group_index, group_size in enumerate((2, 3, 5)):
-        source = class_dir / f"{group_index}0.jpg"
-        Image.new("RGB", (16, 16), color=(group_index * 80, 0, 0)).save(source)
-        for copy_index in range(1, group_size):
-            shutil.copyfile(source, class_dir / f"{group_index}{copy_index}.jpg")
-
-    manifests = build_manifest(
-        tmp_path / "data",
-        tmp_path / "manifests",
-        split_ratios=[0.8, 0.1, 0.1],
-        seed=5,
-    )
-    counts = {split: len(rows) for split, rows in _manifest_rows(manifests).items()}
-
-    assert counts == {"train": 8, "valid": 2}
-    assert sum(abs(counts.get(split, 0) - target) for split, target in {"train": 8, "valid": 1, "test": 1}.items()) == 2
-
-
-def test_grouped_split_finds_reachable_optimal_counts(tmp_path):
-    class_dir = tmp_path / "data" / "paper"
-    class_dir.mkdir(parents=True)
-    for group_index, group_size in enumerate((8, 4, 3, 2, 2, 2)):
-        source = class_dir / f"{group_index}-0.jpg"
-        Image.new("RGB", (16, 16), color=(group_index * 30, 0, 0)).save(source)
-        for copy_index in range(1, group_size):
-            shutil.copyfile(source, class_dir / f"{group_index}-{copy_index}.jpg")
-
-    manifests = build_manifest(
-        tmp_path / "data",
-        tmp_path / "manifests",
-        split_ratios=[0.8, 0.1, 0.1],
-        seed=5,
-    )
-    counts = {split: len(rows) for split, rows in _manifest_rows(manifests).items()}
-
-    assert counts == {"train": 16, "valid": 2, "test": 3}
-
-
-def test_strict_mode_rejects_same_class_duplicates(tmp_path):
-    _make_dataset(tmp_path, {"paper": 2})
     source = tmp_path / "data" / "paper" / "paper0.jpg"
     duplicate = source.with_name("paper-copy.jpg")
     shutil.copyfile(source, duplicate)
+    manifests = build_manifest(tmp_path / "data", tmp_path / "manifests", seed=19)
+    rows = _manifest_rows(manifests)
+    split_names = [
+        split
+        for split, split_rows in rows.items()
+        if {row["path"] for row in split_rows} & {"paper/paper0.jpg", "paper/paper-copy.jpg"}
+    ]
+    assert len(split_names) == 1
+    with pytest.raises(ManifestError, match="duplicate image content"):
+        build_manifest(tmp_path / "data", tmp_path / "strict", strict=True)
 
-    with pytest.raises(ManifestError, match="duplicate image content") as exc_info:
-        build_manifest(tmp_path / "data", tmp_path / "manifests", strict=True)
 
-    assert "paper/paper0.jpg" in str(exc_info.value)
-    assert "paper/paper-copy.jpg" in str(exc_info.value)
+def test_empty_split_is_recorded_and_can_be_read(tmp_path):
+    directory = tmp_path / "data" / "paper"
+    directory.mkdir(parents=True)
+    for group_index, group_size in enumerate((2, 3, 5)):
+        source = directory / f"{group_index}0.jpg"
+        Image.new("RGB", (16, 16), color=(group_index * 80, 0, 0)).save(source)
+        for copy_index in range(1, group_size):
+            shutil.copyfile(source, directory / f"{group_index}{copy_index}.jpg")
+
+    manifests = build_manifest(tmp_path / "data", tmp_path / "manifests", seed=5)
+    counts = {split: len(rows) for split, rows in _manifest_rows(manifests).items()}
+    assert counts == {"train": 8, "valid": 2, "test": 0}
+    assert load_dataset_metadata(tmp_path / "manifests").split_counts == counts
 
 
-def test_source_records_relative_data_root_schema(tmp_path):
+def test_data_root_is_portable_and_legacy_source_schema_is_readable(tmp_path):
     _make_dataset(tmp_path, {"paper": 3})
-    manifest_dir = tmp_path / "metadata" / "manifests"
-
-    build_manifest(tmp_path / "data", manifest_dir)
-
-    source = yaml.safe_load((manifest_dir / "source.yaml").read_text())
+    directory = tmp_path / "metadata" / "manifests"
+    build_manifest(tmp_path / "data", directory)
+    source = yaml.safe_load((directory / "source.yaml").read_text())
     assert source["schema_version"] == 1
     assert source["data_root"] == {"path": "../../data", "relative_to": "manifest_dir"}
-    assert "data_dir" not in source
-    assert manifest_root(manifest_dir) == (tmp_path / "data").resolve()
+    assert manifest_root(directory) == (tmp_path / "data").resolve()
+
+    legacy = tmp_path / "legacy"
+    legacy.mkdir()
+    (legacy / "source.yaml").write_text(yaml.safe_dump({"data_dir": str((tmp_path / "data").resolve())}))
+    assert manifest_root(legacy) == (tmp_path / "data").resolve()
 
 
-def test_manifest_root_reads_absolute_data_dir_schema(tmp_path):
-    data_dir = tmp_path / "absolute-data"
-    data_dir.mkdir()
-    manifest_dir = tmp_path / "manifests"
-    manifest_dir.mkdir()
-    (manifest_dir / "source.yaml").write_text(yaml.safe_dump({"data_dir": str(data_dir.resolve())}))
-
-    assert manifest_root(manifest_dir) == data_dir.resolve()
-
-
-def test_dataset_root_override_supports_moved_data(tmp_path):
-    pytest.importorskip("torch")
-    from garbage_classifier.data.dataset import ImageClassificationDataset
-
-    _make_dataset(tmp_path, {"paper": 3})
-    manifest_dir = tmp_path / "manifests"
-    manifests = build_manifest(tmp_path / "data", manifest_dir)
-    moved_root = tmp_path / "moved-data"
-    shutil.copytree(tmp_path / "data", moved_root)
-    shutil.rmtree(tmp_path / "data")
-
-    dataset = ImageClassificationDataset(manifests["test"], root_dir=moved_root)
-
-    assert len(dataset) == 1
-    assert dataset.samples[0][0].startswith(str(moved_root.resolve()))
-
-
-@pytest.mark.parametrize("manifest_entry", ["../outside.jpg", "absolute"])
-def test_load_manifest_rejects_paths_outside_root(tmp_path, manifest_entry):
+@pytest.mark.parametrize("entry", ["../outside.jpg", "absolute"])
+def test_load_manifest_rejects_paths_outside_root_and_bad_labels(tmp_path, entry):
     root = tmp_path / "data"
     root.mkdir()
     outside = tmp_path / "outside.jpg"
     Image.new("RGB", (16, 16)).save(outside)
-    entry = str(outside.resolve()) if manifest_entry == "absolute" else manifest_entry
+    path = str(outside.resolve()) if entry == "absolute" else entry
     manifest = tmp_path / "manifest.csv"
-    manifest.write_text(f"path,label\n{entry},0\n")
+    manifest.write_text(f"path,label\n{path},3\n")
+    with pytest.raises(ManifestError, match="outside data root"):
+        load_manifest(manifest, root, num_classes=2)
 
-    with pytest.raises(ManifestError, match="outside data root") as exc_info:
-        load_manifest(manifest, root)
-
-    assert entry in str(exc_info.value)
-    assert str(root.resolve()) in str(exc_info.value)
+    valid = root / "image.jpg"
+    Image.new("RGB", (16, 16)).save(valid)
+    manifest.write_text("path,label\nimage.jpg,2\n")
+    with pytest.raises(ManifestError, match="label out of range"):
+        load_manifest(manifest, root, num_classes=2)

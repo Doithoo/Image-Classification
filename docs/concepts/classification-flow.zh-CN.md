@@ -1,8 +1,8 @@
-# How It Works（学习指南）
+# 分类流程
 
-> **初学者先读 [学习路线（learning-path.zh-CN.md）](learning-path.zh-CN.md)** —— 它按阶段
-> 告诉你该读什么、跑什么、练什么。本文按一条数据流讲解整个项目，作为随时查阅的参考：
-> **每一节都解释"做了什么"和"为什么这样做"**。
+[English](classification-flow.md) | [教程](../tutorial/README.zh-CN.md)
+
+本文沿着一张图像讲解准备、训练、评测与部署。第一次实际运行请使用[教程](../tutorial/README.zh-CN.md)。
 
 ## 1. 数据流总览
 
@@ -26,8 +26,9 @@ artifacts/<run>/  (config.yaml + metrics.csv + best.pt + last.pt)
 
 - **可移植**：manifest 存的是相对路径（正斜杠），换机器、换目录都能用，
   不依赖特定操作系统或运行目录。
-- **可复现**：manifest 由固定种子（666）分层切分生成，并记录 `source.yaml`
-  （数据根目录 + 类别表 + 校验和）。同一份数据 + 同一份 manifest = 同一份实验。
+- **可复现**：manifest 由固定种子（666）分层切分生成，并记录 `dataset.yaml`
+  （数据根目录、有序类别和完整切分/源数据 identity）。验证后的同一数据与同一
+  manifest identity 才是同一份数据契约。
 
 ## 3. 训练循环里发生了什么（按 epoch）
 

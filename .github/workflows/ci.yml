@@ -5,54 +5,45 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: astral-sh/setup-uv@v10.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
-
-      - name: Install locked environment
-        run: uv sync --locked --all-extras --dev
-
-      - name: Ruff
-        run: |
-          uv run ruff check src/ tests/
-          uv run ruff format --check src/ tests/
-
-      - name: Pre-commit
-        run: uv run pre-commit run --all-files
-
-      - name: Test
-        run: uv run pytest tests/ -q
-
-      - name: CLI smoke (help + version)
-        run: |
+      - run: uv sync --locked --all-extras
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pre-commit run --all-files
+      - run: uv run pytest -W error::DeprecationWarning
+      - run: |
           uv run garbage --version
-          uv run garbage prepare-data --help
+          uv run garbage list-models
+          uv run garbage show-config --config configs/learning_minimal.yaml --sources
 
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: "3.12"
-          enable-cache: true
-      - run: uv sync --locked --all-extras --dev
-      - name: Build and validate distributions
-        run: |
-          uv build
-          uv run twine check dist/*
-      - name: Clean wheel console smoke
-        run: |
-          uv venv --python 3.12 /tmp/garbage-wheel-smoke
-          uv pip install --python /tmp/garbage-wheel-smoke/bin/python dist/*.whl
+      - run: uv sync --locked --all-extras
+      - run: uv build
+      - run: uv run twine check dist/*
+      - run: uv venv --python 3.12 /tmp/garbage-wheel-smoke
+      - run: uv pip install --python /tmp/garbage-wheel-smoke/bin/python dist/*.whl
+      - run: |
           /tmp/garbage-wheel-smoke/bin/garbage --version
+          /tmp/garbage-wheel-smoke/bin/garbage list-models

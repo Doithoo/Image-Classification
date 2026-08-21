@@ -36,14 +36,16 @@ def main(argv: list[str] | None = None) -> int:
 
     for epoch in range(args.epochs):
         total_loss = 0.0
+        sample_count = 0
         for images, labels in loader:
             optimizer.zero_grad(set_to_none=True)
             outputs = model(images)
             loss = loss_fn(outputs, labels)
             loss.backward()
             optimizer.step()
-            total_loss += loss.item() * len(labels)
-        print(f"epoch {epoch + 1}: loss={total_loss / len(loader.dataset):.4f}")
+            total_loss += loss.item() * labels.numel()
+            sample_count += labels.numel()
+        print(f"epoch {epoch + 1}: loss={total_loss / sample_count:.4f}")
     return 0
 
 

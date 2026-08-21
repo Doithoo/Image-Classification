@@ -2,6 +2,8 @@
 
 import hashlib
 import importlib.util
+import io
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -54,6 +56,41 @@ def test_apply_dataset_audit_fails_before_deleting_on_hash_mismatch(tmp_path, mo
 
 def test_apply_dataset_audit_is_idempotent_when_targets_are_absent(tmp_path):
     assert download_data.apply_dataset_audit(tmp_path) == []
+
+
+def test_safe_extract_tar_rejects_traversal_and_links(tmp_path):
+    traversal = tmp_path / "traversal.tar"
+    with tarfile.open(traversal, "w") as archive:
+        info = tarfile.TarInfo("../outside.txt")
+        payload = b"outside"
+        info.size = len(payload)
+        archive.addfile(info, io.BytesIO(payload))
+    with pytest.raises(RuntimeError, match="unsafe archive member path"):
+        download_data.safe_extract_tar(traversal, tmp_path / "extract-traversal")
+    assert not (tmp_path / "outside.txt").exists()
+
+    linked = tmp_path / "link.tar"
+    with tarfile.open(linked, "w") as archive:
+        info = tarfile.TarInfo("link")
+        info.type = tarfile.SYMTYPE
+        info.linkname = "../outside.txt"
+        archive.addfile(info)
+    with pytest.raises(RuntimeError, match="unsafe archive member type"):
+        download_data.safe_extract_tar(linked, tmp_path / "extract-link")
+
+
+def test_safe_extract_tar_accepts_regular_files(tmp_path):
+    archive_path = tmp_path / "safe.tar"
+    with tarfile.open(archive_path, "w") as archive:
+        info = tarfile.TarInfo("paper/image.jpg")
+        payload = b"image"
+        info.size = len(payload)
+        archive.addfile(info, io.BytesIO(payload))
+
+    destination = tmp_path / "extract"
+    download_data.safe_extract_tar(archive_path, destination)
+
+    assert (destination / "paper" / "image.jpg").read_bytes() == b"image"
 
 
 def test_move_extracted_entries_creates_destination_directory(tmp_path):

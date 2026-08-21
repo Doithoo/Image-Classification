@@ -1,23 +1,31 @@
-.PHONY: install lint test prepare-data smoke clean
+.PHONY: install lint typecheck test check prepare-data verify-data smoke clean
 
 install:
-	uv pip install -e ".[dev]"
+	uv sync --locked --extra dev
 
 lint:
-	ruff check src/ tests/
-	ruff format --check src/ tests/
+	uv run ruff check .
+	uv run ruff format --check .
+
+typecheck:
+	uv run mypy
 
 test:
-	pytest tests/ -q
+	uv run pytest -W error::DeprecationWarning
+
+check: lint typecheck test
 
 prepare-data:
-	garbage prepare-data --set data.data_dir data/raw
+	uv run garbage prepare-data --set data.data_dir data/raw
 
-smoke:  ## 1-epoch CPU smoke run on real data
-	garbage train --config configs/resnet50.yaml \
-		--set train.epochs 1 --set train.batch_size 16 \
-		--set data.num_workers 0 --set device cpu --set run_name smoke
+verify-data:
+	uv run garbage verify-data --set data.data_dir data/raw
 
-clean:  ## Remove caches and build artifacts
-	rm -rf .pytest_cache .ruff_cache build dist *.egg-info src/*.egg-info
+smoke:
+	uv run garbage train --config configs/learning_minimal.yaml \
+		--set data.data_dir data/raw --set train.epochs 1 --set train.batch_size 16 \
+		--set device cpu --set run_name smoke
+
+clean:
+	rm -rf .pytest_cache .ruff_cache .mypy_cache build dist *.egg-info src/*.egg-info
 	find . -name __pycache__ -type d -not -path "./.venv/*" -exec rm -rf {} +

@@ -5,7 +5,7 @@
 
 三个代码目录的职责见各自 README；参数从哪里来、如何覆盖，见
 [配置与参数传递](configuration-flow.zh-CN.md)。进入正式源码后，可以把
-[核心包导航](../src/garbage_classifier/README.zh-CN.md)放在代码旁对照阅读。
+[核心包导航](../../src/garbage_classifier/README.zh-CN.md)放在代码旁对照阅读。
 
 ## 阅读顺序
 

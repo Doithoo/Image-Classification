@@ -41,12 +41,13 @@ class ImageClassificationDataset(Dataset):
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, int]:
         path, label = self.samples[index]
-        img = Image.open(path).convert("RGB")  # JPEGs may be grayscale/CMYK; force RGB
+        with Image.open(path) as source:
+            image = source.convert("RGB")
         if self.transform is not None:
-            img = self.transform(img)
+            image = self.transform(image)
         if self.target_transform is not None:
             label = self.target_transform(label)
-        return img, label
+        return image, label
 
 
 def collate_fn(batch: list[tuple[torch.Tensor, int]]) -> tuple[torch.Tensor, torch.Tensor]:

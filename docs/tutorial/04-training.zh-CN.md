@@ -172,7 +172,7 @@ MixUp 生成的样本本身"更难"，但它让模型学特征而非死记。
   ├─ 硬件内存小？ ─────────────── 是 → batch 16-32，lr 按 §2.2 缩放
   │
   └─ 输出：第一版配置 → --dry-run → 小训练（2-5 epoch）验证曲线健康
-       → 完整训练 + 早停 → evaluate 测试集 → 记录到 docs/experiments.zh-CN.md
+       → 完整训练 + 早停 → evaluate 测试集 → 记录到 docs/recorded-run/
 ```
 
 ## 9. 先比较一个变化
@@ -182,4 +182,4 @@ MixUp 生成的样本本身"更难"，但它让模型学特征而非死记。
 accuracy 和 macro F1。
 
 结果异常时，回到 §6 的现象表检查最可能的原因；准备做更严格的单变量比较时，查看
-[实验说明](../experiments.zh-CN.md)。
+[实验说明](../guides/experiments.zh-CN.md)。

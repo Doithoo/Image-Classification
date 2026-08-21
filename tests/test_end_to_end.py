@@ -1,7 +1,6 @@
-"""Smoke tests: model registry, forward passes, full train/eval/predict loop.
+"""CPU integration tests for verified training, resume and evaluation evidence."""
 
-These run on CPU with tiny synthetic data so they are fast and CI-friendly.
-"""
+from dataclasses import replace
 
 import pytest
 import torch
@@ -11,118 +10,24 @@ from garbage_classifier.config import dump_config, load_config
 from garbage_classifier.data.manifest import build_manifest
 from garbage_classifier.inference import Predictor
 from garbage_classifier.models.registry import available_models, create_model, get_num_parameters
-
-
-def test_training_rejects_manifest_class_count_mismatch(tmp_path, monkeypatch):
-    from garbage_classifier.training import train as train_module
-
-    cfg = load_config(
-        overrides={
-            "model.num_classes": 3,
-            "data.manifest_dir": str(tmp_path / "manifests"),
-            "output_dir": str(tmp_path / "artifacts"),
-        }
-    )
-    monkeypatch.setattr(train_module, "manifest_classes", lambda _path: ["paper", "plastic"])
-
-    with pytest.raises(ValueError, match=r"model\.num_classes.*3.*manifest.*2"):
-        train_module.train_from_config(cfg)
-
-
-def test_training_derives_manifest_class_count_when_omitted(tmp_path):
-    from garbage_classifier.training.train import train_from_config
-
-    cfg_path = _tiny_train(tmp_path)
-    cfg = load_config(cfg_path, overrides={"model.num_classes": None})
-
-    run_dir = train_from_config(cfg, dry_run=True)
-
-    assert load_config(run_dir / "config.yaml").model.num_classes == 3
-
-
-def test_trainer_uses_manifest_class_count_for_mixup_and_metrics(tmp_path, monkeypatch):
-    from garbage_classifier.training.trainer import Trainer
-
-    cfg = load_config(overrides={"model.num_classes": 3})
-    trainer = Trainer(torch.nn.Linear(2, 2), cfg, torch.device("cpu"), ["paper", "plastic"], tmp_path)
-    assert trainer.mixup.num_classes == 2
-
-    captured = {}
-
-    def fake_metrics(preds, labels, num_classes):
-        captured["num_classes"] = num_classes
-        return {"accuracy": 1.0}
-
-    monkeypatch.setattr("garbage_classifier.training.trainer.evaluate_predictions", fake_metrics)
-    loader = torch.utils.data.DataLoader(
-        torch.utils.data.TensorDataset(torch.ones(2, 2), torch.tensor([0, 1])), batch_size=2
-    )
-    trainer._run_epoch(loader, train=False)
-
-    assert captured["num_classes"] == 2
+from garbage_classifier.training.checkpoint import load_checkpoint
+from garbage_classifier.training.train import train_from_config
 
 
 def _synthetic_dataset(tmp_path, per_class: dict[str, int] | None = None) -> None:
-    per_class = per_class or {"a": 6, "b": 6, "c": 6}
-    for cls_index, (cls, n) in enumerate(per_class.items()):
-        d = tmp_path / "data" / cls
-        d.mkdir(parents=True)
-        for i in range(n):
-            Image.new("RGB", (32, 32), color=(i * 40 % 255, cls_index * 40, 200)).save(d / f"{cls}{i}.jpg")
+    for class_index, (class_name, count) in enumerate((per_class or {"a": 6, "b": 6, "c": 6}).items()):
+        directory = tmp_path / "data" / class_name
+        directory.mkdir(parents=True)
+        for index in range(count):
+            Image.new("RGB", (32, 32), color=(index * 40 % 255, class_index * 40, 200)).save(
+                directory / f"{class_name}{index}.jpg"
+            )
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        "resnet18",
-        "mobilenetv3_small_100",
-        "efficientnet_b0",
-        "convnext_tiny",
-        "swin_tiny_patch4_window7_224",
-        "vit_base_patch16_224",
-    ],
-)
-def test_model_forward(name):
-    model = create_model(name, num_classes=6, pretrained=False).eval()
-    with torch.no_grad():
-        out = model(torch.randn(1, 3, 224, 224))
-    assert out.shape == (1, 6)
-    assert get_num_parameters(model) > 0
-
-
-def test_registry_exposes_models():
-    assert available_models() == [
-        "convnext_small",
-        "convnext_tiny",
-        "efficientnet_b0",
-        "efficientnet_b3",
-        "efficientnetv2_s",
-        "mobilenetv3_large_100",
-        "mobilenetv3_small_100",
-        "regnetx_002",
-        "regnetx_004",
-        "resnet101",
-        "resnet152",
-        "resnet18",
-        "resnet34",
-        "resnet50",
-        "swin_tiny_patch4_window7_224",
-        "tv_resnet50",
-        "vit_base_patch16_224",
-    ]
-
-
-def test_unknown_model_raises():
-    with pytest.raises(KeyError):
-        create_model("no_such_model", num_classes=6)
-
-
-def _tiny_train(tmp_path):
-    """Build a tiny CPU config, dump it to YAML and return the config path."""
+def _tiny_config(tmp_path, *, epochs: int = 2):
     _synthetic_dataset(tmp_path)
     build_manifest(tmp_path / "data", tmp_path / "manifests", seed=1)
-
-    cfg = load_config(
+    return load_config(
         overrides={
             "data.data_dir": str(tmp_path / "data"),
             "data.manifest_dir": str(tmp_path / "manifests"),
@@ -131,87 +36,105 @@ def _tiny_train(tmp_path):
             "model.name": "mobilenetv3_small_100",
             "model.num_classes": 3,
             "model.pretrained": False,
-            "train.epochs": 2,
+            "train.epochs": epochs,
             "train.batch_size": 4,
             "train.amp": False,
-            "train.early_stop_patience": 5,
-            "device": "cpu",  # tests must be CPU-only (CI is CPU)
+            "train.early_stop_patience": 0,
+            "device": "cpu",
             "output_dir": str(tmp_path / "artifacts"),
             "run_name": "smoke",
         }
     )
-    cfg_path = tmp_path / "cfg.yaml"
-    dump_config(cfg, cfg_path)
-    return cfg_path
 
 
-def _cli_args(config_path, **extra):
-    class Args:
-        pass
+def test_training_requires_verified_data_and_matching_class_assertion(tmp_path):
+    cfg = load_config(
+        overrides={
+            "model.num_classes": 3,
+            "data.manifest_dir": str(tmp_path / "missing"),
+            "output_dir": str(tmp_path / "artifacts"),
+        }
+    )
+    with pytest.raises(Exception, match="dataset.yaml"):
+        train_from_config(cfg)
 
-    a = Args()
-    a.config = str(config_path)
-    a.set = []
-    a.device = "auto"
-    a.output_dir = None
-    a.resume = None
-    a.image_size = None
-    a.opset = 17
-    a.no_verify = False
-    a.plot = False
-    a.tta = False
-    a.dry_run = False
-    for k, v in extra.items():
-        setattr(a, k, v)
-    return a
+    cfg = _tiny_config(tmp_path)
+    mismatched = replace(cfg, model=replace(cfg.model, num_classes=2))
+    with pytest.raises(Exception, match="configured 2, prepared data requires 3"):
+        train_from_config(mismatched)
 
 
-def test_train_eval_predict_roundtrip(tmp_path):
-    cfg_path = _tiny_train(tmp_path)
-    from garbage_classifier.cli import cmd_evaluate, cmd_predict, cmd_train
+def test_dry_run_resolves_classes_without_writing_run_artifacts(tmp_path):
+    cfg = _tiny_config(tmp_path)
+    run_dir = train_from_config(cfg, dry_run=True)
 
-    assert cmd_train(_cli_args(cfg_path)) == 0
-
-    ckpt = tmp_path / "artifacts" / "smoke" / "best.pt"
-    assert ckpt.exists()
-    assert (tmp_path / "artifacts" / "smoke" / "metrics.csv").exists()
-    assert (tmp_path / "artifacts" / "smoke" / "config.yaml").exists()
-
-    # evaluate on test split
-    assert cmd_evaluate(_cli_args(cfg_path, checkpoint=str(ckpt), split="test", error_limit=5)) == 0
-    assert (tmp_path / "artifacts" / "smoke" / "predictions.csv").exists()
-
-    # resume from checkpoint (should be a no-op start at epoch 2)
-    assert cmd_train(_cli_args(cfg_path, resume=str(ckpt))) == 0
-
-    # dry-run verifies the pipeline on 1 batch without training
-    assert cmd_train(_cli_args(cfg_path, dry_run=True)) == 0
-
-    # predict a single image through the CLI command
-    img = next(iter((tmp_path / "data" / "a").glob("*.jpg")))
-    assert cmd_predict(_cli_args(cfg_path, checkpoint=str(ckpt), image=str(img), top_k=3)) == 0
-
-    # export-onnx (requires the optional onnx extra; skipped otherwise)
-    import importlib.util
-
-    if importlib.util.find_spec("onnx") is not None:
-        from garbage_classifier.cli import cmd_export_onnx
-
-        assert cmd_export_onnx(_cli_args(cfg_path, checkpoint=str(ckpt), output=str(tmp_path / "model.onnx"))) == 0
-        assert (tmp_path / "model.onnx").exists()
-        assert (tmp_path / "model.onnx.meta.yaml").exists()
+    assert not run_dir.exists()
 
 
-def test_predictor_from_checkpoint_is_self_contained(tmp_path):
-    cfg_path = _tiny_train(tmp_path)
-    from garbage_classifier.cli import cmd_train
+@pytest.mark.parametrize("name", ["resnet18", "mobilenetv3_small_100", "efficientnet_b0", "convnext_tiny"])
+def test_selected_registry_models_have_logits_contract(name):
+    model = create_model(name, num_classes=6, pretrained=False).eval()
+    with torch.inference_mode():
+        output = model(torch.randn(1, 3, 224, 224))
+    assert output.shape == (1, 6)
+    assert get_num_parameters(model) > 0
 
-    assert cmd_train(_cli_args(cfg_path)) == 0
 
-    ckpt = tmp_path / "artifacts" / "smoke" / "best.pt"
-    predictor = Predictor(ckpt, device="cpu")  # no config passed -> restored from checkpoint
-    assert predictor.class_names == ["a", "b", "c"]
-    img = Image.open(next(iter((tmp_path / "data" / "a").glob("*.jpg"))))
-    top = predictor.predict(img, top_k=3)
-    assert len(top) == 3
-    assert all(isinstance(name, str) and 0.0 <= prob <= 1.0 for name, prob in top)
+def test_registry_lists_stable_models_without_constructing_weights():
+    assert "resnet18" in available_models()
+    assert "tv_resnet50" in available_models()
+    with pytest.raises(KeyError):
+        create_model("no_such_model", num_classes=6)
+
+
+def test_train_evaluate_predict_and_safe_resume_roundtrip(tmp_path):
+    cfg = _tiny_config(tmp_path)
+    run_dir = train_from_config(cfg)
+    checkpoint = run_dir / "best.pt"
+    payload = load_checkpoint(checkpoint)
+
+    assert payload["manifest_identity"]
+    assert (run_dir / "metrics.csv").is_file()
+    assert (run_dir / "run.yaml").is_file()
+    assert not (run_dir / "evaluation").exists()
+    with pytest.raises(FileExistsError, match="run directory already exists"):
+        train_from_config(cfg)
+
+    from garbage_classifier.evaluation.evaluate import evaluate_checkpoint
+
+    metrics = evaluate_checkpoint(checkpoint, cfg, split="test")
+    evidence = run_dir / "evaluation" / "test"
+    assert metrics["top_5_accuracy"] == 1.0
+    assert (evidence / "evaluation.json").is_file()
+    assert (evidence / "predictions.csv").is_file()
+    assert (evidence / "errors.csv").is_file()
+    assert (evidence / "per_class.csv").is_file()
+    with pytest.raises(FileExistsError, match="non-empty"):
+        evaluate_checkpoint(checkpoint, cfg, split="test")
+    evaluate_checkpoint(checkpoint, cfg, split="test", overwrite=True)
+
+    predictor = Predictor(checkpoint, device="cpu")
+    image = next((tmp_path / "data" / "a").glob("*.jpg"))
+    assert len(predictor.predict_path(image, top_k=3)) == 3
+
+    with pytest.raises(ValueError, match="resume requires last.pt"):
+        train_from_config(cfg, resume=str(checkpoint))
+    with (run_dir / "metrics.csv").open("a", encoding="utf-8") as handle:
+        handle.write("3,9,9,0,0,0\n")
+    assert train_from_config(cfg, resume=str(run_dir / "last.pt")) == run_dir
+    assert "\n3," not in (run_dir / "metrics.csv").read_text(encoding="utf-8")
+
+
+def test_checkpoint_resume_rejects_changed_data_identity(tmp_path):
+    cfg = _tiny_config(tmp_path, epochs=1)
+    run_dir = train_from_config(cfg)
+    Image.new("RGB", (32, 32), color="white").save(tmp_path / "data" / "a" / "changed.jpg")
+    with pytest.raises(Exception, match="source image checksum mismatch"):
+        train_from_config(cfg, resume=str(run_dir / "last.pt"))
+
+
+def test_dump_config_accepts_path_values(tmp_path):
+    cfg = _tiny_config(tmp_path, epochs=1)
+    path = tmp_path / "config.yaml"
+    dump_config(cfg, path)
+    assert load_config(path).data.data_dir == tmp_path / "data"

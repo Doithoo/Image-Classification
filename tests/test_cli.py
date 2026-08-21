@@ -150,4 +150,4 @@ def test_show_config_prints_the_fully_resolved_configuration(tmp_path, capsys):
     assert resolved["train"]["lr"] == 0.0002
     assert resolved["device"] == "cpu"
     assert resolved["output_dir"] == "runs"
-    assert resolved["model"]["name"] == "resnet50"
+    assert resolved["model"]["name"] == "resnet18"

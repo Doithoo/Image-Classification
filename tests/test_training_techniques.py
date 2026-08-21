@@ -105,7 +105,7 @@ def test_warmup_then_cosine_scheduler():
     """Warmup raises LR slowly, then cosine decays it."""
     cfg = load_config(overrides={"train.warmup_epochs": 3, "train.epochs": 10, "train.scheduler": "cosine"})
     model = torch.nn.Linear(8, 2)
-    trainer = Trainer(model, cfg, torch.device("cpu"), ["a", "b"], "/tmp/__warmup_test__")
+    trainer = Trainer(model, cfg, torch.device("cpu"), ["a", "b"], "/tmp/__warmup_test__", "test-manifest")
     assert trainer.scheduler is not None
     lrs = []
     for _ in range(10):
@@ -130,7 +130,7 @@ def test_loader_smaller_than_batch_still_updates_model(tmp_path):
         }
     )
     model = torch.nn.Linear(2, 2)
-    trainer = Trainer(model, cfg, torch.device("cpu"), ["a", "b"], tmp_path)
+    trainer = Trainer(model, cfg, torch.device("cpu"), ["a", "b"], tmp_path, "test-manifest")
     loader = torch.utils.data.DataLoader(
         torch.utils.data.TensorDataset(torch.tensor([[1.0, 0.0], [0.0, 1.0]]), torch.tensor([0, 1])),
         batch_size=8,
@@ -146,7 +146,7 @@ def test_loader_smaller_than_batch_still_updates_model(tmp_path):
 
 def test_empty_loader_has_clear_error(tmp_path):
     cfg = load_config(overrides={"train.amp": False})
-    trainer = Trainer(torch.nn.Linear(2, 2), cfg, torch.device("cpu"), ["a", "b"], tmp_path)
+    trainer = Trainer(torch.nn.Linear(2, 2), cfg, torch.device("cpu"), ["a", "b"], tmp_path, "test-manifest")
     loader = torch.utils.data.DataLoader(
         torch.utils.data.TensorDataset(torch.empty(0, 2), torch.empty(0, dtype=torch.long)), batch_size=4
     )

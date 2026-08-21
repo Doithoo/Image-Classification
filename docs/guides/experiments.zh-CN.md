@@ -19,11 +19,19 @@ garbage prepare-data --set data.data_dir data/raw --strict
 - `data/manifests/summary.txt` 中的 manifest 校验和；
 - 依赖锁、随机种子和选中的 checkpoint。
 
-用验证集指标比较配置。只有选定最终配置后，才在测试集运行 `garbage evaluate`。
+用验证集指标比较配置。只有选定最终配置后，才在测试集运行 `garbage evaluate`。兼容的
+完成运行可直接排序，无需手动检查 checkpoint：
+
+```bash
+garbage compare-runs artifacts/experiment-a artifacts/experiment-b \
+  --metric macro_f1 --output artifacts/comparison.csv
+```
+
+该命令会拒绝 `manifest_identity` 不同的运行。
 
 ## 一次具体的思考过程
 
-[经过核对的 ResNet50 运行](reference-run.zh-CN.md)适合作为对照，因为 manifest、配置、
+[ResNet50 参考运行](../recorded-run/README.zh-CN.md)适合作为对照，因为 manifest、配置、
 环境和输出都可以查看。假设想回答的问题是：**MixUp 是否改善了这组设置的验证集表现？**
 
 - 保持 manifest、seed、ResNet50、15 个 epoch、optimizer、scheduler 和预处理不变。

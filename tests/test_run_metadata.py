@@ -22,12 +22,13 @@ def test_run_metadata_records_the_environment_and_elapsed_time(tmp_path, monkeyp
     write_run_metadata(tmp_path / "run.yaml", metadata)
 
     saved = yaml.safe_load((tmp_path / "run.yaml").read_text())
-    assert saved["schema_version"] == 1
+    assert saved["schema_version"] == 2
     assert saved["started_at"] == "2026-08-13T12:00:00+00:00"
     assert saved["finished_at"] == "2026-08-13T12:02:00+00:00"
     assert saved["elapsed_seconds"] == 120.25
     assert saved["python"]
     assert saved["pytorch"] == str(torch.__version__)
+    assert saved["torchvision"]
     assert saved["platform"] == "test-platform"
     assert saved["device"] == "cpu"
     assert saved["accelerator"] == "test-machine"

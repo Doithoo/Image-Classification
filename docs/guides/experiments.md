@@ -23,11 +23,19 @@ The generated files already preserve most of the useful context:
 - the dependency lock, random seed and selected checkpoint.
 
 Use validation metrics to compare settings. Run `garbage evaluate` on the test
-split only after choosing the final setting.
+split only after choosing the final setting. Compatible completed runs can be
+ranked without inspecting checkpoints manually:
+
+```bash
+garbage compare-runs artifacts/experiment-a artifacts/experiment-b \
+  --metric macro_f1 --output artifacts/comparison.csv
+```
+
+The command rejects runs with different `manifest_identity` values.
 
 ## A worked way to reason about a comparison
 
-The [verified ResNet50 run](reference-run.md) is a useful control because its
+The [recorded ResNet50 run](../recorded-run/README.md) is a useful control because its
 manifest, configuration, environment, and output are all visible. Suppose the
 question is: **does MixUp improve validation performance for this setup?**
 

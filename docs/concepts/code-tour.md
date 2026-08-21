@@ -6,7 +6,7 @@ production package is complete by design, so do not start by reading every file.
 For directory roles and parameter precedence, see
 [Configuration and Parameter Flow](configuration-flow.md) and the READMEs inside
 `scripts/`, `src/` and `tests/`. When you enter the installed package, keep its
-[local package map](../src/garbage_classifier/README.md) open beside the code.
+[local package map](../../src/garbage_classifier/README.md) open beside the code.
 
 > **中文版：[code-tour.zh-CN.md](code-tour.zh-CN.md)**
 

@@ -12,8 +12,13 @@ from __future__ import annotations
 
 import torchvision.transforms as T
 from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 
 from ..config import DataConfig
+
+
+def _interpolation(cfg: DataConfig) -> InterpolationMode:
+    return InterpolationMode.BILINEAR if cfg.interpolation == "bilinear" else InterpolationMode.BICUBIC
 
 
 def _normalize(cfg: DataConfig) -> T.Normalize:
@@ -25,10 +30,14 @@ def _normalize(cfg: DataConfig) -> T.Normalize:
 def build_train_transform(cfg: DataConfig) -> T.Compose:
     ops: list[T.Transform] = [
         # scale the 512x384 image so the short side is 256 (keeps aspect ratio)
-        transforms.Resize(cfg.resize_size),
+        transforms.Resize(cfg.resize_size, interpolation=_interpolation(cfg)),
         # crop a random 224x224 region with scale 0.6-1.0 of the image:
         # random location + random zoom = "see the object in many ways"
-        transforms.RandomResizedCrop(cfg.image_size, scale=(0.6, 1.0)),
+        transforms.RandomResizedCrop(
+            cfg.image_size,
+            scale=(0.6, 1.0),
+            interpolation=_interpolation(cfg),
+        ),
         # 50% chance of mirroring — objects are still the same class when flipped
         transforms.RandomHorizontalFlip(),
     ]
@@ -46,7 +55,7 @@ def build_train_transform(cfg: DataConfig) -> T.Compose:
 def build_eval_transform(cfg: DataConfig) -> T.Compose:
     return transforms.Compose(
         [
-            transforms.Resize(cfg.resize_size),
+            transforms.Resize(cfg.resize_size, interpolation=_interpolation(cfg)),
             # deterministic crop: always take the center 224x224
             transforms.CenterCrop(cfg.image_size),
             transforms.ToTensor(),

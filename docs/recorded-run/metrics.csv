@@ -1,0 +1,2 @@
+epoch,train_loss,val_loss,accuracy,balanced_acc,macro_f1
+15,,,0.8929,0.8976,0.8858

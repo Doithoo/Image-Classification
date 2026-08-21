@@ -1,97 +1,110 @@
+"""Evaluation evidence uses checkpoint preprocessing and verified dataset identity."""
+
 import json
-from pathlib import Path
+from dataclasses import replace
 
+import pytest
 import torch
+from PIL import Image
 
-from garbage_classifier.config import load_config, to_dict
-from garbage_classifier.evaluation.evaluate import evaluate_checkpoint
+from garbage_classifier.config import load_config
+from garbage_classifier.data.manifest import build_manifest, load_dataset_metadata
+from garbage_classifier.evaluation.evaluate import EVALUATION_SCHEMA_VERSION, evaluate_checkpoint
+from garbage_classifier.training.checkpoint import save_checkpoint
 
 
-def test_evaluate_uses_checkpoint_model_and_preprocessing_with_cli_runtime_overrides(tmp_path, monkeypatch):
+def _prepared_two_class_data(tmp_path):
+    for class_index, name in enumerate(("a", "b")):
+        directory = tmp_path / "data" / name
+        directory.mkdir(parents=True)
+        for index in range(10):
+            Image.new("RGB", (24, 24), color=(class_index * 100, index * 10, 0)).save(directory / f"{index}.jpg")
+    build_manifest(tmp_path / "data", tmp_path / "manifests", seed=3)
+
+
+def test_evaluate_uses_checkpoint_preprocessing_and_publishes_confidence_evidence(tmp_path, monkeypatch):
+    _prepared_two_class_data(tmp_path)
+    metadata = load_dataset_metadata(tmp_path / "manifests")
     checkpoint_cfg = load_config(
         overrides={
+            "data.data_dir": str(tmp_path / "data"),
+            "data.manifest_dir": str(tmp_path / "manifests"),
             "data.image_size": 19,
             "data.resize_size": 23,
             "data.normalize_mean": [0.1, 0.2, 0.3],
             "data.normalize_std": [0.4, 0.5, 0.6],
-            "model.name": "checkpoint-model",
-        }
-    )
-    checkpoint = tmp_path / "model.pt"
-    torch.save(
-        {
-            "model_state_dict": {},
-            "config": to_dict(checkpoint_cfg),
-            "class_names": ["a", "b"],
-        },
-        checkpoint,
-    )
-    cli_cfg = load_config(
-        overrides={
-            "data.data_dir": str(tmp_path / "images"),
-            "data.manifest_dir": str(tmp_path / "manifests"),
-            "data.image_size": 99,
-            "data.resize_size": 101,
-            "data.normalize_mean": [0.7, 0.7, 0.7],
-            "data.normalize_std": [0.9, 0.9, 0.9],
-            "data.num_workers": 0,
-            "model.name": "cli-model",
+            "model.name": "resnet18",
+            "model.num_classes": 2,
             "train.batch_size": 7,
             "device": "cpu",
         }
+    )
+    checkpoint = tmp_path / "model.pt"
+    save_checkpoint(
+        checkpoint,
+        model=torch.nn.Linear(2, 2),
+        epoch=1,
+        best_metric=0.5,
+        cfg=checkpoint_cfg,
+        class_names=list(metadata.classes),
+        manifest_identity=metadata.identity,
     )
     captured = {}
 
     def fake_transform(data_cfg):
         captured["data_cfg"] = data_cfg
-        return object()
-
-    class FakeDataset:
-        samples = [("sample.jpg", 0)]
-
-        def __init__(self, manifest_path, root_dir, transform):
-            captured.update(manifest_path=manifest_path, root_dir=root_dir, transform=transform)
-
-        def __len__(self):
-            return 1
-
-    class FakeLoader:
-        def __init__(self, dataset, **kwargs):
-            captured["loader_kwargs"] = kwargs
-
-        def __iter__(self):
-            yield torch.zeros(1, 3, 19, 19), torch.tensor([0])
+        return lambda _image: torch.zeros(3, data_cfg.image_size, data_cfg.image_size)
 
     class FakePredictor:
-        def __init__(self, checkpoint_path, device):
-            captured.update(predictor_checkpoint=checkpoint_path, predictor_device=device)
-            self.cfg = checkpoint_cfg
+        def __init__(self, checkpoint_path, device, config_path=None):
+            captured.update(checkpoint_path=checkpoint_path, device=device, config_path=config_path)
 
         def predict_probs(self, images, tta=False):
-            captured["tensor_shape"] = tuple(images.shape)
-            return torch.tensor([[1.0, 0.0]])
+            captured["shape"] = tuple(images.shape)
+            probabilities = torch.zeros(len(images), 2)
+            probabilities[:, 0] = 0.9
+            probabilities[:, 1] = 0.1
+            return probabilities
 
     monkeypatch.setattr("garbage_classifier.evaluation.evaluate.build_eval_transform", fake_transform)
-    monkeypatch.setattr("garbage_classifier.evaluation.evaluate.ImageClassificationDataset", FakeDataset)
-    monkeypatch.setattr("garbage_classifier.evaluation.evaluate.torch.utils.data.DataLoader", FakeLoader)
     monkeypatch.setattr("garbage_classifier.inference.predictor.Predictor", FakePredictor)
+    runtime_cfg = replace(checkpoint_cfg, train=replace(checkpoint_cfg.train, batch_size=3))
 
-    metrics = evaluate_checkpoint(checkpoint, cli_cfg, output_dir=tmp_path / "output")
+    metrics = evaluate_checkpoint(checkpoint, runtime_cfg, output_dir=tmp_path / "output")
 
     report = json.loads((tmp_path / "output" / "evaluation.json").read_text())
-    assert report["schema_version"] == 1
-    assert report["split"] == "test"
-    assert report["tta"] is False
-    assert report["checkpoint"] == "model.pt"
-    assert report["class_names"] == ["a", "b"]
+    assert report["schema_version"] == EVALUATION_SCHEMA_VERSION
+    assert report["manifest_identity"] == metadata.identity
     assert report["metrics"] == metrics
+    assert "nll" in metrics and "ece" in metrics and metrics["top_5_accuracy"] == 1.0
+    assert (tmp_path / "output" / "predictions.csv").is_file()
+    assert (tmp_path / "output" / "errors.csv").is_file()
+    assert (tmp_path / "output" / "calibration.csv").is_file()
+    assert captured["data_cfg"].image_size == 19
+    assert captured["shape"][1:] == (3, 19, 19)
 
-    data_cfg = captured["data_cfg"]
-    assert (data_cfg.image_size, data_cfg.resize_size) == (19, 23)
-    assert data_cfg.normalize_mean == [0.1, 0.2, 0.3]
-    assert data_cfg.normalize_std == [0.4, 0.5, 0.6]
-    assert captured["manifest_path"] == Path(cli_cfg.data.manifest_dir) / "test.csv"
-    assert captured["root_dir"] == Path(cli_cfg.data.data_dir)
-    assert captured["loader_kwargs"]["batch_size"] == 7
-    assert captured["loader_kwargs"]["num_workers"] == 0
-    assert captured["predictor_device"] == "cpu"
+
+def test_evaluation_rejects_checkpoint_for_different_verified_dataset(tmp_path):
+    _prepared_two_class_data(tmp_path)
+    metadata = load_dataset_metadata(tmp_path / "manifests")
+    cfg = load_config(
+        overrides={
+            "data.data_dir": str(tmp_path / "data"),
+            "data.manifest_dir": str(tmp_path / "manifests"),
+            "model.num_classes": 2,
+        }
+    )
+    checkpoint = tmp_path / "wrong.pt"
+    save_checkpoint(
+        checkpoint,
+        model=torch.nn.Linear(2, 2),
+        epoch=1,
+        best_metric=0.0,
+        cfg=cfg,
+        class_names=list(metadata.classes),
+        manifest_identity="another-dataset",
+    )
+    from garbage_classifier.training.checkpoint import CheckpointCompatibilityError
+
+    with pytest.raises(CheckpointCompatibilityError, match="manifest_identity"):
+        evaluate_checkpoint(checkpoint, cfg)

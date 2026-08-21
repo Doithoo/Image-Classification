@@ -1,6 +1,24 @@
-"""Models package: registry and model zoo."""
+"""Models package: registry, inspectable specifications and built-in zoo."""
 
-from . import zoo  # noqa: F401  (populates the registry)
-from .registry import available_models, create_model, get_num_parameters, register
+from . import zoo  # noqa: F401
+from .registry import (
+    ModelSpec,
+    available_model_specs,
+    available_models,
+    create_model,
+    get_num_parameters,
+    model_spec,
+    register,
+    resolve_preprocessing,
+)
 
-__all__ = ["register", "create_model", "available_models", "get_num_parameters"]
+__all__ = [
+    "ModelSpec",
+    "available_model_specs",
+    "available_models",
+    "create_model",
+    "get_num_parameters",
+    "model_spec",
+    "register",
+    "resolve_preprocessing",
+]

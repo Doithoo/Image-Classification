@@ -3,7 +3,7 @@
 [English](README.md)
 
 这里是安装后真正运行的 `garbage_classifier` 包。建议先运行
-[`examples/`](../../examples/) 并阅读[代码导览](../../docs/code-tour.zh-CN.md)，
+[`examples/`](../../examples/) 并阅读[代码导览](../../docs/concepts/code-tour.zh-CN.md)，
 然后把本页作为正式实现的地图。
 
 ## 训练命令调用链
@@ -40,4 +40,4 @@ garbage train
 3. `evaluation/metrics.py`、`inference/predictor.py`。
 4. `mixup.py`、`ema.py`、`checkpoint.py` 和 manifest 私有辅助函数。
 
-所有用户配置参数见[配置参数参考](../../docs/config-reference.zh-CN.md)。
+所有用户配置参数见[配置参数参考](../../docs/reference/config-reference.zh-CN.md)。

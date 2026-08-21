@@ -115,7 +115,7 @@ train_manifest_sha256=57ab9378...
 预览图，随后检查 `summary.txt` 中的类别、数量和切分。嵌套过深、坏图片、重复图片和
 样本极少的类别都应该在长训练前处理。
 
-完整命令和排查方法见[换成自己的图片数据](../using-your-data.zh-CN.md)。
+完整命令和排查方法见[换成自己的图片数据](../guides/using-your-data.zh-CN.md)。
 
 ---
 

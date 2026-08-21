@@ -7,14 +7,19 @@ from pathlib import Path
 from .predictor import Predictor
 
 
-def run_demo(checkpoint_path: str | Path, device: str = "auto", share: bool = False) -> None:
+def run_demo(
+    checkpoint_path: str | Path,
+    device: str = "auto",
+    share: bool = False,
+    config_path: str | Path | None = None,
+) -> None:
     """Launch the Gradio UI. Requires the ``demo`` extra (gradio)."""
     try:
         import gradio as gr
     except ImportError:
         raise SystemExit("gradio is not installed; run: pip install -e '.[demo]'") from None
 
-    predictor = Predictor(checkpoint_path, device=device)
+    predictor = Predictor(checkpoint_path, device=device, config_path=config_path)
 
     def classify(image):
         if image is None:

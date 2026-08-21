@@ -3,7 +3,7 @@
 [简体中文](README.zh-CN.md)
 
 This is the installed `garbage_classifier` package. Start with the runnable
-[`examples/`](../../examples/) and the [Code Tour](../../docs/code-tour.md), then
+[`examples/`](../../examples/) and the [Code Tour](../../docs/concepts/code-tour.md), then
 use this page as a map of the production implementation.
 
 ## Train command call flow
@@ -41,4 +41,4 @@ garbage train
 4. `mixup.py`, `ema.py`, `checkpoint.py`, manifest private helpers.
 
 Full configuration documentation is in the
-[Config Reference](../../docs/config-reference.md).
+[Config Reference](../../docs/reference/config-reference.md).

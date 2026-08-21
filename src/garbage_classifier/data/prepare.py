@@ -13,12 +13,9 @@ def prepare_data(
     split_ratios: list[float],
     seed: int,
     strict: bool = False,
+    overwrite: bool = False,
 ) -> dict[str, Path]:
-    """Generate train/valid/test CSV manifests; returns {split: manifest_path}.
-
-    Content-identical images stay in one split. ``strict=True`` refuses any
-    duplicate, while cross-class duplicates always fail as annotation conflicts.
-    """
+    """Generate verified manifests and atomically publish them as one dataset contract."""
     manifests = build_manifest(
         data_dir,
         manifest_dir,
@@ -26,9 +23,10 @@ def prepare_data(
         seed=seed,
         validate=True,
         strict=strict,
+        overwrite=overwrite,
     )
     print(f"manifests written to {manifest_dir}:")
     for split, path in manifests.items():
         print(f"  {split:6s} {path}")
-    print(f"summary: {Path(manifest_dir) / 'summary.txt'}")
+    print(f"metadata: {Path(manifest_dir) / 'dataset.yaml'}")
     return manifests

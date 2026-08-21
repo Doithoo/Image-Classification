@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import shutil
+import tarfile
 import urllib.request
 from pathlib import Path
 
@@ -61,6 +62,36 @@ def apply_dataset_audit(data_dir: Path) -> list[str]:
     return [relative_path for relative_path, _ in present]
 
 
+def safe_extract_tar(archive: Path, destination: Path) -> None:
+    """Extract regular files/directories while rejecting traversal, links and devices."""
+    destination.mkdir(parents=True, exist_ok=True)
+    root = destination.resolve()
+    with tarfile.open(archive, mode="r:*") as tar:
+        members = tar.getmembers()
+        for member in members:
+            member_path = Path(member.name)
+            target = root / member_path
+            try:
+                target.resolve().relative_to(root)
+            except ValueError as exc:
+                raise RuntimeError(f"unsafe archive member path: {member.name!r}") from exc
+            if member_path.is_absolute() or member.issym() or member.islnk():
+                raise RuntimeError(f"unsafe archive member type: {member.name!r}")
+            if not (member.isdir() or member.isfile()):
+                raise RuntimeError(f"unsupported archive member type: {member.name!r}")
+        for member in members:
+            target = root / member.name
+            if member.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            source = tar.extractfile(member)
+            if source is None:
+                raise RuntimeError(f"cannot read archive member: {member.name!r}")
+            with source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+
+
 def _move_extracted_entries(extracted_dir: Path, destination: Path) -> None:
     """Move verified archive entries into a newly-created destination."""
     destination.mkdir(parents=True, exist_ok=True)
@@ -98,9 +129,11 @@ def main() -> int:
 
     print(f"checksum OK ({actual}) — extracting ...")
     tmp = out.parent / ".garbage-extract"
-    if tmp.exists():
+    if tmp.is_symlink():
+        tmp.unlink()
+    elif tmp.exists():
         shutil.rmtree(tmp)
-    shutil.unpack_archive(archive, tmp)
+    safe_extract_tar(archive, tmp)
     _move_extracted_entries(tmp, out)
     tmp.rmdir()
     archive.unlink()

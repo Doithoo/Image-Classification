@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "scope": "Historical schema-v1 evidence; not a schema-v2 evaluation artifact.",
+  "split": "test",
+  "metrics": {
+    "accuracy": 0.9333,
+    "balanced_accuracy": 0.9079,
+    "macro_f1": 0.9176,
+    "weighted_f1": 0.9325
+  }
+}
